@@ -26,10 +26,24 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - run: ./gradlew build --no-daemon
 
+  workflow-lint:
+    name: Workflow Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download actionlint
+        id: actionlint
+        shell: bash
+        run: bash <(curl --fail --silent --show-error --location https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
+      - name: Lint GitHub Actions workflows
+        shell: bash
+        run: |
+          "${{ steps.actionlint.outputs.executable }}" -color .github/workflows/*.yml
+
   pipeline-complete:
     name: Pipeline Complete
     if: always()
-    needs: [build-test]
+    needs: [build-test, workflow-lint]
     runs-on: ubuntu-latest
     steps:
       - name: Verify all gating jobs succeeded
