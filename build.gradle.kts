@@ -43,12 +43,6 @@ gradlePlugin {
             displayName = "JorisJonkers OpenAPI Client"
             description = "Generates typed JVM clients from consumer-owned local OpenAPI specs."
         }
-        create("openApiClientLegacy") {
-            id = "dev.extratoast.openapi-client"
-            implementationClass = "dev.extratoast.openapi.client.OpenApiClientPlugin"
-            displayName = "ExtraToast OpenAPI Client legacy alias"
-            description = "Generates typed JVM clients from consumer-owned local OpenAPI specs."
-        }
     }
 }
 
@@ -118,9 +112,6 @@ tasks.register("verifyPublishingCoordinates") {
                 "pluginMaven" to ("dev.jorisjonkers" to "openapi-client-gradle"),
                 "openApiClientPluginMarkerMaven" to (
                     "dev.jorisjonkers.openapi-client" to "dev.jorisjonkers.openapi-client.gradle.plugin"
-                ),
-                "openApiClientLegacyPluginMarkerMaven" to (
-                    "dev.extratoast.openapi-client" to "dev.extratoast.openapi-client.gradle.plugin"
                 ),
             )
         expected.forEach { (name, coordinates) ->

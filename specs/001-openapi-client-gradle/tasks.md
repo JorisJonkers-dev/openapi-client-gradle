@@ -11,7 +11,7 @@
 - [x] T004 [FR-5, FR-6, FR-7, FR-8, FR-10, SC-1, SC-5] Add TestKit fixture spec `src/test/resources/specs/sample.yml` and a test that generates, compiles, and reruns a YAML client with selected APIs and schema/type mappings.
 - [x] T005 [FR-9, FR-11, SC-2] Add a TestKit test where a consumer-owned prep task writes the spec before `generate` runs.
 - [x] T006 [FR-12] Add TestKit failure tests for missing required config, unreadable spec path, invalid OpenAPI shape, absent selected API/tag, and blank mappings.
-- [x] T007 [FR-3, SC-4] Add build verification that new and legacy marker publications are present and the Maven coordinates are `dev.jorisjonkers:openapi-client-gradle`.
+- [x] T007 [FR-3, SC-4] Add build verification that the plugin marker publication is present and the Maven coordinates are `dev.jorisjonkers:openapi-client-gradle`.
 
 ## Phase 3: Plugin Implementation
 

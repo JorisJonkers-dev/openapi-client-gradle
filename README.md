@@ -16,9 +16,6 @@ Plugin id:
 dev.jorisjonkers.openapi-client
 ```
 
-The legacy `dev.extratoast.openapi-client` plugin id remains available as a compatibility alias during the
-JorisJonkers-dev migration.
-
 Consumers resolve the plugin from GitHub Packages in `settings.gradle.kts`:
 
 ```kotlin

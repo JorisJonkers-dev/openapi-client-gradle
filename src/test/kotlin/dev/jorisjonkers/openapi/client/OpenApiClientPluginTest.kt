@@ -63,22 +63,6 @@ class OpenApiClientPluginTest {
     }
 
     @Test
-    fun `legacy plugin id applies compatibility alias`() {
-        writeSettings()
-        writeBuildFile(
-            """
-            plugins {
-                id("dev.extratoast.openapi-client")
-            }
-            """.trimIndent(),
-        )
-
-        val result = runGradle("tasks", "--all")
-
-        assertTrue(result.output.contains("generateOpenApiClient"))
-    }
-
-    @Test
     fun `kotlin spring rest client mode generates and compiles kotlin sources`() {
         writeSettings()
         writeResource("specs/sample.yml", tempDir.resolve("specs/sample.yml"))
