@@ -3,10 +3,10 @@
 ## Technical Context
 
 - Product: published Gradle plugin for JVM OpenAPI client generation from consumer-owned local specs.
-- Build stack: Gradle 9.5.1 wrapper, Kotlin DSL plugin implementation, Java 21 local/CI runtime, plugin bytecode targeted to Java 21 to match the current ExtraToast Gradle baseline.
+- Build stack: Gradle 9.5.1 wrapper, Kotlin DSL plugin implementation, Java 21 local/CI runtime, plugin bytecode targeted to Java 21 to match the current JorisJonkers-dev Gradle baseline.
 - Generator stack: `org.openapitools:openapi-generator-gradle-plugin:7.22.0`, matching the current website build-logic convention.
 - Generated client target: Java source using OpenAPI Generator `java` + `restclient`, Jackson 3 serialization, Jakarta annotations/validation, and Spring 7 client dependencies.
-- Publication: GitHub Packages Maven artifact `dev.extratoast:openapi-client-gradle`. The Gradle plugin id is `dev.extratoast.openapi-client`; consumers map that id to the Maven artifact with `pluginManagement.resolutionStrategy.eachPlugin`. Automatic plugin-marker publications are disabled to avoid doubled marker/module names.
+- Publication: GitHub Packages Maven artifact `dev.jorisjonkers:openapi-client-gradle`. The Gradle plugin id is `dev.jorisjonkers.openapi-client`; consumers map that id to the Maven artifact with `pluginManagement.resolutionStrategy.eachPlugin`. Automatic plugin marker publication is enabled to avoid doubled marker/module names.
 
 ## Design Decisions
 
@@ -34,9 +34,9 @@
 ├── build.gradle.kts
 ├── settings.gradle.kts
 ├── gradle/wrapper/*
-├── src/main/kotlin/dev/extratoast/openapi/client/
+├── src/main/kotlin/dev/jorisjonkers/openapi/client/
 │   └── OpenApiClientPlugin.kt
-├── src/test/kotlin/dev/extratoast/openapi/client/
+├── src/test/kotlin/dev/jorisjonkers/openapi/client/
 │   └── OpenApiClientPluginTest.kt
 ├── src/test/resources/specs/
 │   ├── sample.yml
@@ -54,7 +54,7 @@
 
 - FR-1: Binary Gradle plugin applies Java/OpenAPI generator behavior for external client generation.
 - FR-2, FR-4: Maven publication to GitHub Packages with release-please versioning and exact consumer pinning.
-- FR-3: `dev.extratoast.openapi-client` maps to `dev.extratoast:openapi-client-gradle`; marker publications are disabled.
+- FR-3: `dev.jorisjonkers.openapi-client` maps to `dev.jorisjonkers:openapi-client-gradle`; its plugin marker publication is enabled.
 - FR-5: `specPath` supports root-relative and absolute local JSON/YAML files.
 - FR-6: `openApiClient` exposes package names, selected APIs/tags, schema mappings, and type mappings.
 - FR-7: Generated `src/main/java` is registered in the main Java source set; Java compilation depends on generation.
@@ -72,7 +72,7 @@
 - SC-1: TestKit builds a consumer project from a bundled YAML spec and compiles the generated client.
 - SC-2: TestKit builds a consumer project where a prep task writes the selected-tag JSON/YAML spec before generation.
 - SC-3: README and release workflows document exact version pinning for `website` and `personal-stack`.
-- SC-4: Build verification checks that only the normal Maven publication is present and marker publications are absent.
+- SC-4: Build verification checks that the normal Maven publication and plugin marker publication are present.
 - SC-5: TestKit invokes `generate` twice and asserts the second run is `UP_TO_DATE` for unchanged inputs.
 - SC-6: Implementation has no network fetch code; tests use local fixture specs.
 - SC-7: No code path references or invokes `api-contract-checks`.

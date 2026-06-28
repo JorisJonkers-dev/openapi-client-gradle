@@ -7,16 +7,16 @@ Gradle plugin for generating typed JVM clients from local OpenAPI specs owned by
 Published Maven artifact:
 
 ```text
-dev.extratoast:openapi-client-gradle:<version>
+dev.jorisjonkers:openapi-client-gradle:<version>
 ```
 
 Plugin id:
 
 ```text
-dev.extratoast.openapi-client
+dev.jorisjonkers.openapi-client
 ```
 
-The artifact intentionally does not publish Gradle plugin marker modules. Consumers map the plugin id to the Maven artifact in `settings.gradle.kts`:
+Consumers resolve the plugin from GitHub Packages in `settings.gradle.kts`:
 
 ```kotlin
 pluginManagement {
@@ -24,8 +24,8 @@ pluginManagement {
         gradlePluginPortal()
         mavenCentral()
         maven {
-            name = "ExtraToastOpenApiClientGradle"
-            url = uri("https://maven.pkg.github.com/ExtraToast/openapi-client-gradle")
+            name = "JorisJonkersOpenApiClientGradle"
+            url = uri("https://maven.pkg.github.com/JorisJonkers-dev/openapi-client-gradle")
             credentials {
                 username = providers.gradleProperty("gpr.user")
                     .orElse(providers.environmentVariable("GITHUB_ACTOR"))
@@ -36,13 +36,6 @@ pluginManagement {
             }
         }
     }
-    resolutionStrategy {
-        eachPlugin {
-            if (requested.id.id == "dev.extratoast.openapi-client") {
-                useModule("dev.extratoast:openapi-client-gradle:${requested.version}")
-            }
-        }
-    }
 }
 ```
 
@@ -50,7 +43,7 @@ Then apply the pinned plugin version in a client module:
 
 ```kotlin
 plugins {
-    id("dev.extratoast.openapi-client") version "0.1.0"
+    id("dev.jorisjonkers.openapi-client") version "0.2.0"
 }
 ```
 
@@ -85,6 +78,18 @@ openApiClient {
 }
 ```
 
+For Kotlin clients backed by Spring `RestClient`, use the built-in mode:
+
+```kotlin
+openApiClient {
+    useKotlinSpringRestClient()
+    specPath.set("libs/openapi-specs/vendor.yml")
+    apiPackage.set("dev.jorisjonkers.vendor.client.api")
+    modelPackage.set("dev.jorisjonkers.vendor.client.model")
+    packageName.set("dev.jorisjonkers.vendor.client")
+}
+```
+
 Required fields:
 
 - `specPath`: local JSON/YAML OpenAPI document, absolute or relative to the consuming root project.
@@ -101,7 +106,7 @@ Optional fields:
 - `typeMappings`: OpenAPI Generator type mappings.
 - `configOptions` and `inlineSchemaOptions`: additional OpenAPI Generator options.
 
-The plugin registers `build/generated/openapi/<sourceFolder>` as main Java source and makes Java compilation depend on `generate`. Generated clients use OpenAPI Generator `java` + `restclient`, Jackson 3, Jakarta annotations/validation, and Spring 7 client dependencies by default. Dependency versions are exposed as extension properties for consumers that need a different Spring, Jackson, or Jakarta stack.
+The plugin registers `build/generated/openapi/<sourceFolder>` as main JVM source and makes compilation depend on `generate`. Generated clients use OpenAPI Generator `java` + `restclient`, Jackson 3, Jakarta annotations/validation, and Spring 7 client dependencies by default. Dependency versions are exposed as extension properties for consumers that need a different Spring, Jackson, or Jakarta stack.
 
 ## External Specs
 
@@ -159,7 +164,7 @@ Validation runs after `generate` dependencies, so prepared specs are checked aft
 The plugin also exposes generic task types for generated text artifacts:
 
 ```kotlin
-tasks.register<dev.extratoast.openapi.client.OpenApiProvenanceBannerTask>("bannerGeneratedApi") {
+tasks.register<dev.jorisjonkers.openapi.client.OpenApiProvenanceBannerTask>("bannerGeneratedApi") {
     inputFile.set(layout.buildDirectory.file("generated/api.tmp.ts"))
     outputFile.set(layout.projectDirectory.file("src/api/generated.ts"))
     bannerText.set(
@@ -174,7 +179,7 @@ tasks.register<dev.extratoast.openapi.client.OpenApiProvenanceBannerTask>("banne
     )
 }
 
-tasks.register<dev.extratoast.openapi.client.OpenApiDriftCheckTask>("checkGeneratedApiDrift") {
+tasks.register<dev.jorisjonkers.openapi.client.OpenApiDriftCheckTask>("checkGeneratedApiDrift") {
     expectedFile.set(layout.projectDirectory.file("src/api/generated.ts"))
     actualFile.set(layout.buildDirectory.file("generated/api.tmp.ts"))
     failureMessage.set("Generated API client drift detected. Regenerate the client.")

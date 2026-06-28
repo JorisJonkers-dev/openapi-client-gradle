@@ -15,7 +15,7 @@
 
 - [x] Specifies a published Gradle plugin for typed clients from external OpenAPI specs.
 - [x] References the website Brevo and Discord client cases without modifying the reference repo.
-- [x] Requires consumption by both `ExtraToast/website` and `ExtraToast/personal-stack` as a versioned artifact.
+- [x] Requires consumption by both `JorisJonkers-dev/website` and `JorisJonkers-dev/personal-stack` as a versioned artifact.
 - [x] Requires short coordinates and excludes doubled plugin-marker names.
 - [x] Requires Renovate-pinned consumption and states that `personal-stack` is not itself versioned.
 - [x] Distinguishes this feature from `api-contract-checks`.
