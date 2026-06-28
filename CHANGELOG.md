@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/JorisJonkers-dev/openapi-client-gradle/compare/v0.2.0...v0.3.0) (2026-06-28)
+
+
+### Features
+
+* migrate OpenAPI client Gradle plugin to JorisJonkers ([#1](https://github.com/JorisJonkers-dev/openapi-client-gradle/issues/1)) ([4fce97e](https://github.com/JorisJonkers-dev/openapi-client-gradle/commit/4fce97e7391256706316ccd7eedaa6b664c83a1c))
+
 ## [0.2.0](https://github.com/ExtraToast/openapi-client-gradle/compare/v0.1.0...v0.2.0) (2026-06-09)
 
 
