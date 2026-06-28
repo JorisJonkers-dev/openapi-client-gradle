@@ -1,4 +1,4 @@
-package dev.extratoast.openapi.client
+package dev.jorisjonkers.openapi.client
 
 import com.fasterxml.jackson.core.JsonProcessingException
 import com.fasterxml.jackson.databind.JsonNode
@@ -31,56 +31,69 @@ import java.net.URI
 import java.util.Locale
 import javax.inject.Inject
 
-abstract class OpenApiExternalSpecsExtension @Inject constructor(objects: ObjectFactory) {
-    val specDirectory = objects.directoryProperty()
-    val specs: NamedDomainObjectContainer<ExternalOpenApiSpec> =
-        objects.domainObjectContainer(ExternalOpenApiSpec::class.java)
-    val filters: NamedDomainObjectContainer<ExternalOpenApiSpecFilter> =
-        objects.domainObjectContainer(ExternalOpenApiSpecFilter::class.java)
+abstract class OpenApiExternalSpecsExtension
+    @Inject
+    constructor(
+        objects: ObjectFactory,
+    ) {
+        val specDirectory = objects.directoryProperty()
+        val specs: NamedDomainObjectContainer<ExternalOpenApiSpec> =
+            objects.domainObjectContainer(ExternalOpenApiSpec::class.java)
+        val filters: NamedDomainObjectContainer<ExternalOpenApiSpecFilter> =
+            objects.domainObjectContainer(ExternalOpenApiSpecFilter::class.java)
 
-    init {
-        specs.all {
-            rawFileName.convention("${name}.raw")
-            normalizedFileName.convention("${name}.json")
+        init {
+            specs.all {
+                rawFileName.convention("$name.raw")
+                normalizedFileName.convention("$name.json")
+            }
+        }
+
+        fun specs(action: Action<NamedDomainObjectContainer<ExternalOpenApiSpec>>) {
+            action.execute(specs)
+        }
+
+        fun filters(action: Action<NamedDomainObjectContainer<ExternalOpenApiSpecFilter>>) {
+            action.execute(filters)
         }
     }
 
-    fun specs(action: Action<NamedDomainObjectContainer<ExternalOpenApiSpec>>) {
-        action.execute(specs)
+abstract class ExternalOpenApiSpec
+    @Inject
+    constructor(
+        private val specName: String,
+        objects: ObjectFactory,
+    ) : Named {
+        override fun getName(): String = specName
+
+        val sourceUrl: Property<String> = objects.property(String::class.java)
+        val rawFileName: Property<String> = objects.property(String::class.java)
+        val normalizedFileName: Property<String> = objects.property(String::class.java)
     }
 
-    fun filters(action: Action<NamedDomainObjectContainer<ExternalOpenApiSpecFilter>>) {
-        action.execute(filters)
+abstract class ExternalOpenApiSpecFilter
+    @Inject
+    constructor(
+        private val filterName: String,
+        objects: ObjectFactory,
+    ) : Named {
+        override fun getName(): String = filterName
+
+        val inputSpec: Property<String> =
+            objects.property(String::class.java)
+        val outputSpec: Property<String> = objects.property(String::class.java)
+        val allowedOperations: MapProperty<String, List<String>> =
+            objects.mapProperty(String::class.java, listOfStringsType())
+        val injectedTag: Property<String> = objects.property(String::class.java)
+        val pruneUnreachableSchemas: Property<Boolean> =
+            objects
+                .property(
+                    Boolean::class.javaObjectType,
+                ).convention(true)
+        val rewriteNullTypes: Property<Boolean> = objects.property(Boolean::class.javaObjectType).convention(true)
+        val collapseRedundantEnumAllOf: Property<Boolean> =
+            objects.property(Boolean::class.javaObjectType).convention(true)
     }
-}
-
-abstract class ExternalOpenApiSpec @Inject constructor(
-    private val specName: String,
-    objects: ObjectFactory,
-) : Named {
-    override fun getName(): String = specName
-
-    val sourceUrl: Property<String> = objects.property(String::class.java)
-    val rawFileName: Property<String> = objects.property(String::class.java)
-    val normalizedFileName: Property<String> = objects.property(String::class.java)
-}
-
-abstract class ExternalOpenApiSpecFilter @Inject constructor(
-    private val filterName: String,
-    objects: ObjectFactory,
-) : Named {
-    override fun getName(): String = filterName
-
-    val inputSpec: Property<String> = objects.property(String::class.java)
-    val outputSpec: Property<String> = objects.property(String::class.java)
-    val allowedOperations: MapProperty<String, List<String>> =
-        objects.mapProperty(String::class.java, listOfStringsType())
-    val injectedTag: Property<String> = objects.property(String::class.java)
-    val pruneUnreachableSchemas: Property<Boolean> = objects.property(Boolean::class.javaObjectType).convention(true)
-    val rewriteNullTypes: Property<Boolean> = objects.property(Boolean::class.javaObjectType).convention(true)
-    val collapseRedundantEnumAllOf: Property<Boolean> =
-        objects.property(Boolean::class.javaObjectType).convention(true)
-}
 
 @DisableCachingByDefault(because = "Downloads from remote URLs; output not reproducible from inputs")
 abstract class DownloadExternalOpenApiSpecsTask : DefaultTask() {
@@ -108,8 +121,9 @@ abstract class DownloadExternalOpenApiSpecsTask : DefaultTask() {
         val outputDir = specDirectory.get().asFile
         outputDir.mkdirs()
         specs.forEach { spec ->
-            val source = spec.sourceUrl.orNull?.takeIf { it.isNotBlank() }
-                ?: throw GradleException("openApiExternalSpecs.specs.${spec.name}.sourceUrl is required.")
+            val source =
+                spec.sourceUrl.orNull?.takeIf { it.isNotBlank() }
+                    ?: throw GradleException("openApiExternalSpecs.specs.${spec.name}.sourceUrl is required.")
             val target = safeChild(outputDir, spec.rawFileName.get(), "rawFileName")
             target.parentFile.mkdirs()
             val uri = parseSourceUri(spec.name, source)
@@ -144,19 +158,21 @@ abstract class NormalizeExternalOpenApiSpecsTask : DefaultTask() {
     @get:InputFiles
     @get:PathSensitive(PathSensitivity.RELATIVE)
     val rawSpecFiles: org.gradle.api.file.FileCollection
-        get() = project.files(
-            configuredSpecs.toList().map { spec ->
-                safeChild(specDirectory.get().asFile, spec.rawFileName.get(), "rawFileName")
-            },
-        )
+        get() =
+            project.files(
+                configuredSpecs.toList().map { spec ->
+                    safeChild(specDirectory.get().asFile, spec.rawFileName.get(), "rawFileName")
+                },
+            )
 
     @get:OutputFiles
     val normalizedSpecFiles: org.gradle.api.file.FileCollection
-        get() = project.files(
-            configuredSpecs.toList().map { spec ->
-                safeChild(specDirectory.get().asFile, normalizedJsonFileName(spec), "normalizedFileName")
-            },
-        )
+        get() =
+            project.files(
+                configuredSpecs.toList().map { spec ->
+                    safeChild(specDirectory.get().asFile, normalizedJsonFileName(spec), "normalizedFileName")
+                },
+            )
 
     @TaskAction
     fun normalize() {
@@ -217,16 +233,20 @@ abstract class OpenApiFilterSpecTask : DefaultTask() {
         if (allowList.isEmpty()) {
             throw GradleException("allowedOperations must contain at least one path.")
         }
-        val tag = injectedTag.orNull?.takeIf { it.isNotBlank() }
-            ?: throw GradleException("injectedTag is required and must not be blank.")
+        val tag =
+            injectedTag.orNull?.takeIf { it.isNotBlank() }
+                ?: throw GradleException("injectedTag is required and must not be blank.")
 
         val parsedRoot = OpenApiSpecJson.read(inputSpec.get().asFile)
         if (parsedRoot !is ObjectNode) {
             throw GradleException("OpenAPI spec must be a JSON/YAML object: ${inputSpec.get().asFile.absolutePath}")
         }
         val root = parsedRoot.deepCopy<ObjectNode>()
-        val paths = root.path("paths") as? ObjectNode
-            ?: throw GradleException("OpenAPI spec must contain a 'paths' object: ${inputSpec.get().asFile.absolutePath}")
+        val paths =
+            root.path("paths") as? ObjectNode
+                ?: throw GradleException(
+                    "OpenAPI spec must contain a 'paths' object: ${inputSpec.get().asFile.absolutePath}",
+                )
         val output = outputSpec.get().asFile
         if (!output.name.endsWith(".json", ignoreCase = true)) {
             throw GradleException("OpenApiFilterSpecTask outputSpec must end with .json: ${output.absolutePath}")
@@ -245,15 +265,26 @@ abstract class OpenApiFilterSpecTask : DefaultTask() {
             collapseRedundantEnumAllOf(root)
         }
 
-        outputSpec.get().asFile.parentFile.mkdirs()
+        outputSpec
+            .get()
+            .asFile.parentFile
+            .mkdirs()
         OpenApiSpecJson.writeMinified(root, outputSpec.get().asFile)
     }
 
-    private fun filterPaths(paths: ObjectNode, allowList: Map<String, List<String>>, tag: String) {
+    private fun filterPaths(
+        paths: ObjectNode,
+        allowList: Map<String, List<String>>,
+        tag: String,
+    ) {
         val methods = setOf("get", "post", "put", "patch", "delete", "head", "options", "trace")
         val missingPaths = allowList.keys.filterNot { paths.has(it) }
         if (missingPaths.isNotEmpty()) {
-            throw GradleException("allowedOperations references path(s) not present in the OpenAPI spec: ${missingPaths.joinToString(", ")}")
+            throw GradleException(
+                "allowedOperations references path(s) not present in the OpenAPI spec: ${missingPaths.joinToString(
+                    ", ",
+                )}",
+            )
         }
         allowList.forEach { (path, allowedMethods) ->
             if (allowedMethods.isEmpty()) {
@@ -261,7 +292,11 @@ abstract class OpenApiFilterSpecTask : DefaultTask() {
             }
             val invalidMethods = allowedMethods.map { it.lowercase() }.filterNot(methods::contains)
             if (invalidMethods.isNotEmpty()) {
-                throw GradleException("allowedOperations[$path] contains unsupported HTTP method(s): ${invalidMethods.joinToString(", ")}")
+                throw GradleException(
+                    "allowedOperations[$path] contains unsupported HTTP method(s): ${invalidMethods.joinToString(
+                        ", ",
+                    )}",
+                )
             }
         }
 
@@ -287,7 +322,10 @@ abstract class OpenApiFilterSpecTask : DefaultTask() {
         }
     }
 
-    private fun pruneSchemas(root: ObjectNode, schemas: ObjectNode) {
+    private fun pruneSchemas(
+        root: ObjectNode,
+        schemas: ObjectNode,
+    ) {
         val seeds = linkedSetOf<String>()
         val queuedComponents = ArrayDeque<ComponentRef>()
         val seenComponents = linkedSetOf<ComponentRef>()
@@ -323,7 +361,11 @@ abstract class OpenApiFilterSpecTask : DefaultTask() {
         }
     }
 
-    private fun collectRefs(node: JsonNode, schemaRefs: MutableSet<String>, componentRefs: ArrayDeque<ComponentRef>) {
+    private fun collectRefs(
+        node: JsonNode,
+        schemaRefs: MutableSet<String>,
+        componentRefs: ArrayDeque<ComponentRef>,
+    ) {
         if (node.isObject) {
             val ref = node.path("\$ref")
             if (ref.isTextual) {
@@ -384,8 +426,9 @@ abstract class OpenApiProvenanceBannerTask : DefaultTask() {
 
     @TaskAction
     fun applyBanner() {
-        val banner = bannerText.orNull?.takeIf { it.isNotBlank() }
-            ?: throw GradleException("bannerText is required and must not be blank.")
+        val banner =
+            bannerText.orNull?.takeIf { it.isNotBlank() }
+                ?: throw GradleException("bannerText is required and must not be blank.")
         val normalizedBanner = if (banner.endsWith("\n")) banner else "$banner\n"
         val input = inputFile.get().asFile
         if (!input.exists() || !input.isFile) {
@@ -431,7 +474,10 @@ abstract class OpenApiDriftCheckTask : DefaultTask() {
     }
 }
 
-private data class ComponentRef(val section: String, val name: String)
+private data class ComponentRef(
+    val section: String,
+    val name: String,
+)
 
 internal fun filterOpenApiSpecTaskName(name: String): String =
     "filter${name.replaceFirstChar { first ->
@@ -443,13 +489,14 @@ internal object OpenApiSpecJson {
     private val yamlMapper = ObjectMapper(YAMLFactory())
 
     fun read(file: File): JsonNode {
-        val mapper = if (file.extension.equals("yaml", ignoreCase = true) ||
-            file.extension.equals("yml", ignoreCase = true)
-        ) {
-            yamlMapper
-        } else {
-            jsonMapper
-        }
+        val mapper =
+            if (file.extension.equals("yaml", ignoreCase = true) ||
+                file.extension.equals("yml", ignoreCase = true)
+            ) {
+                yamlMapper
+            } else {
+                jsonMapper
+            }
         if (file.length() == 0L) {
             throw GradleException("OpenAPI spec must not be empty: ${file.absolutePath}")
         }
@@ -464,7 +511,10 @@ internal object OpenApiSpecJson {
         }
     }
 
-    fun writeMinified(root: JsonNode, target: File) {
+    fun writeMinified(
+        root: JsonNode,
+        target: File,
+    ) {
         target.writeText(jsonMapper.writeValueAsString(sortObjects(root)))
     }
 
@@ -485,12 +535,16 @@ internal object OpenApiSpecJson {
     }
 }
 
-private fun parseSourceUri(specName: String, source: String): URI {
-    val uri = try {
-        URI(source)
-    } catch (exc: Exception) {
-        throw GradleException("openApiExternalSpecs.specs.$specName.sourceUrl must be a valid URI: $source", exc)
-    }
+private fun parseSourceUri(
+    specName: String,
+    source: String,
+): URI {
+    val uri =
+        try {
+            URI(source)
+        } catch (exc: Exception) {
+            throw GradleException("openApiExternalSpecs.specs.$specName.sourceUrl must be a valid URI: $source", exc)
+        }
     if (uri.scheme.isNullOrBlank()) {
         throw GradleException("openApiExternalSpecs.specs.$specName.sourceUrl must be an absolute URI: $source")
     }
@@ -514,10 +568,13 @@ private fun parseComponentRef(ref: String): ComponentRef? {
     return ComponentRef(segments[0].decodeJsonPointer(), segments.drop(1).joinToString("/").decodeJsonPointer())
 }
 
-private fun String.decodeJsonPointer(): String =
-    replace("~1", "/").replace("~0", "~")
+private fun String.decodeJsonPointer(): String = replace("~1", "/").replace("~0", "~")
 
-private fun safeChild(directory: File, relativePath: String, propertyName: String): File {
+private fun safeChild(
+    directory: File,
+    relativePath: String,
+    propertyName: String,
+): File {
     if (relativePath.isBlank()) {
         throw GradleException("openApiExternalSpecs $propertyName must not be blank.")
     }

@@ -22,4 +22,5 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - run: ./gradlew publish --no-daemon --no-parallel --max-workers=1
         env:
+          GITHUB_ACTOR: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

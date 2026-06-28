@@ -2,9 +2,9 @@
 
 ## Overview
 
-This feature adds reusable Gradle tasks for acquiring and preparing third-party OpenAPI specifications before client generation. It complements the existing `dev.extratoast.openapi-client` client-generation plugin by moving common download, normalization, filtering, and compatibility rewrites out of consumer build scripts.
+This feature adds reusable Gradle tasks for acquiring and preparing third-party OpenAPI specifications before client generation. It complements the existing `dev.jorisjonkers.openapi-client` client-generation plugin by moving common download, normalization, filtering, and compatibility rewrites out of consumer build scripts.
 
-The reference implementation is the `ExtraToast/website` external spec flow for Discord and Brevo. Vendor URLs, application-specific allow lists, and post-generation workarounds remain in the consuming repository.
+The reference implementation is the `JorisJonkers-dev/website` external spec flow for Discord and Brevo. Vendor URLs, application-specific allow lists, and post-generation workarounds remain in the consuming repository.
 
 ## Functional Requirements
 

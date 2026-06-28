@@ -1,4 +1,4 @@
-package dev.extratoast.openapi.client
+package dev.jorisjonkers.openapi.client
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.gradle.api.GradleException
@@ -10,8 +10,8 @@ import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.TaskOutcome
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import org.openapitools.generator.gradle.plugin.tasks.GenerateTask
@@ -34,7 +34,7 @@ class OpenApiClientPluginTest {
         writeBuildFile(
             """
             plugins {
-                id("dev.extratoast.openapi-client")
+                id("dev.jorisjonkers.openapi-client")
             }
 
             openApiClient {
@@ -63,12 +63,55 @@ class OpenApiClientPluginTest {
     }
 
     @Test
-    fun `runs consumer owned preparation before validating and generating`() {
+    fun `legacy plugin id applies compatibility alias`() {
         writeSettings()
         writeBuildFile(
             """
             plugins {
                 id("dev.extratoast.openapi-client")
+            }
+            """.trimIndent(),
+        )
+
+        val result = runGradle("tasks", "--all")
+
+        assertTrue(result.output.contains("generateOpenApiClient"))
+    }
+
+    @Test
+    fun `kotlin spring rest client mode generates and compiles kotlin sources`() {
+        writeSettings()
+        writeResource("specs/sample.yml", tempDir.resolve("specs/sample.yml"))
+        writeBuildFile(
+            """
+            plugins {
+                id("dev.jorisjonkers.openapi-client")
+            }
+
+            openApiClient {
+                useKotlinSpringRestClient()
+                specPath.set("specs/sample.yml")
+                apiPackage.set("com.example.pet.api")
+                modelPackage.set("com.example.pet.model")
+                packageName.set("com.example.pet.invoker")
+                apis.set(listOf("Pets"))
+            }
+            """.trimIndent(),
+        )
+
+        val result = runGradle("build")
+
+        assertEquals(TaskOutcome.SUCCESS, result.task(":generate")?.outcome)
+        assertTrue(hasKotlinSource(tempDir.resolve("build/generated/openapi/src/main/kotlin")))
+    }
+
+    @Test
+    fun `runs consumer owned preparation before validating and generating`() {
+        writeSettings()
+        writeBuildFile(
+            """
+            plugins {
+                id("dev.jorisjonkers.openapi-client")
             }
 
             val preparedSpec = layout.buildDirectory.file("prepared/spec.yml")
@@ -103,7 +146,9 @@ class OpenApiClientPluginTest {
         assertEquals(TaskOutcome.SUCCESS, result.task(":prepareSpec")?.outcome)
         assertEquals(TaskOutcome.SUCCESS, result.task(":generate")?.outcome)
         assertTrue(
-            Files.exists(tempDir.resolve("build/generated/openapi/src/main/java/com/example/prepared/api/PreparedApi.java")),
+            Files.exists(
+                tempDir.resolve("build/generated/openapi/src/main/java/com/example/prepared/api/PreparedApi.java"),
+            ),
             "prepared spec should generate the selected API",
         )
     }
@@ -114,7 +159,7 @@ class OpenApiClientPluginTest {
         writeBuildFile(
             """
             plugins {
-                id("dev.extratoast.openapi-client")
+                id("dev.jorisjonkers.openapi-client")
             }
             """.trimIndent(),
         )
@@ -164,7 +209,7 @@ class OpenApiClientPluginTest {
         writeBuildFile(
             """
             plugins {
-                id("dev.extratoast.openapi-client")
+                id("dev.jorisjonkers.openapi-client")
             }
 
             openApiClient {
@@ -211,7 +256,7 @@ class OpenApiClientPluginTest {
         writeBuildFile(
             """
             plugins {
-                id("dev.extratoast.openapi-client")
+                id("dev.jorisjonkers.openapi-client")
             }
 
             openApiExternalSpecs {
@@ -253,7 +298,7 @@ class OpenApiClientPluginTest {
         writeBuildFile(
             """
             plugins {
-                id("dev.extratoast.openapi-client")
+                id("dev.jorisjonkers.openapi-client")
             }
 
             openApiExternalSpecs {
@@ -272,7 +317,7 @@ class OpenApiClientPluginTest {
         writeBuildFile(
             """
             plugins {
-                id("dev.extratoast.openapi-client")
+                id("dev.jorisjonkers.openapi-client")
             }
 
             openApiExternalSpecs {
@@ -295,7 +340,7 @@ class OpenApiClientPluginTest {
         writeBuildFile(
             """
             plugins {
-                id("dev.extratoast.openapi-client")
+                id("dev.jorisjonkers.openapi-client")
             }
 
             openApiExternalSpecs {
@@ -312,29 +357,35 @@ class OpenApiClientPluginTest {
 
         result = runGradleAndFail("normalizeExternalOpenApiSpecs")
 
-        assertTrue(result.output.contains("openApiExternalSpecs.specs.badOutput.normalizedFileName must end with .json"))
+        assertTrue(
+            result.output.contains("openApiExternalSpecs.specs.badOutput.normalizedFileName must end with .json"),
+        )
     }
 
     @Test
     fun `filters allowed operations injects tags and rewrites reachable schemas`() {
         writeSpec("specs/discord-like.json", discordLikeFixture())
         val output = tempDir.resolve("build/filtered/discord-like.json")
-        val project = ProjectBuilder.builder()
-            .withProjectDir(tempDir.toFile())
-            .build()
+        val project =
+            ProjectBuilder
+                .builder()
+                .withProjectDir(tempDir.toFile())
+                .build()
 
-        val task = project.tasks.register("filterDiscordLikeSpec", OpenApiFilterSpecTask::class.java) {
-            inputSpec.set(project.layout.projectDirectory.file("specs/discord-like.json"))
-            outputSpec.set(project.layout.buildDirectory.file("filtered/discord-like.json"))
-            allowedOperations.set(
-                mapOf(
-                    "/users/@me" to listOf("get"),
-                    "/guilds/{guild_id}" to listOf("get"),
-                    "/guilds/{guild_id}/members/{user_id}" to listOf("get", "patch"),
-                ),
-            )
-            injectedTag.set("Fixture")
-        }.get()
+        val task =
+            project.tasks
+                .register("filterDiscordLikeSpec", OpenApiFilterSpecTask::class.java) {
+                    inputSpec.set(project.layout.projectDirectory.file("specs/discord-like.json"))
+                    outputSpec.set(project.layout.buildDirectory.file("filtered/discord-like.json"))
+                    allowedOperations.set(
+                        mapOf(
+                            "/users/@me" to listOf("get"),
+                            "/guilds/{guild_id}" to listOf("get"),
+                            "/guilds/{guild_id}/members/{user_id}" to listOf("get", "patch"),
+                        ),
+                    )
+                    injectedTag.set("Fixture")
+                }.get()
 
         task.filter()
 
@@ -344,7 +395,14 @@ class OpenApiClientPluginTest {
         assertTrue(paths.has("/guilds/{guild_id}"))
         assertTrue(paths.has("/guilds/{guild_id}/members/{user_id}"))
         assertFalse(paths.has("/unused"))
-        assertEquals("Fixture", paths.path("/users/@me").path("get").path("tags")[0].asText())
+        assertEquals(
+            "Fixture",
+            paths
+                .path("/users/@me")
+                .path("get")
+                .path("tags")[0]
+                .asText(),
+        )
         assertFalse(paths.path("/guilds/{guild_id}/members/{user_id}").has("delete"))
 
         val schemas = root.path("components").path("schemas")
@@ -361,10 +419,27 @@ class OpenApiClientPluginTest {
         assertEquals("boolean", schemas.path("NullableRoleMarker").path("type").asText())
         assertEquals(
             "#/components/schemas/StickerType",
-            schemas.path("Sticker").path("properties").path("type").path("\$ref").asText(),
+            schemas
+                .path("Sticker")
+                .path("properties")
+                .path("type")
+                .path("\$ref")
+                .asText(),
         )
-        assertFalse(schemas.path("Sticker").path("properties").path("type").has("allOf"))
-        assertFalse(schemas.path("Sticker").path("properties").path("type").has("enum"))
+        assertFalse(
+            schemas
+                .path("Sticker")
+                .path("properties")
+                .path("type")
+                .has("allOf"),
+        )
+        assertFalse(
+            schemas
+                .path("Sticker")
+                .path("properties")
+                .path("type")
+                .has("enum"),
+        )
     }
 
     @Test
@@ -389,10 +464,11 @@ class OpenApiClientPluginTest {
         )
         assertFilterFails(
             expectedMessage = "OpenAPI spec must contain a 'paths' object",
-            inputSpec = writeSpec(
-                "specs/filter-no-paths.json",
-                """{"openapi":"3.0.3","info":{"title":"No paths","version":"1.0.0"}}""",
-            ),
+            inputSpec =
+                writeSpec(
+                    "specs/filter-no-paths.json",
+                    """{"openapi":"3.0.3","info":{"title":"No paths","version":"1.0.0"}}""",
+                ),
             allowedOperations = mapOf("/pets" to listOf("get")),
         )
         assertFilterFails(
@@ -423,18 +499,20 @@ class OpenApiClientPluginTest {
         val input = writeSpec("specs/filter-toggles.json", transformToggleFixture())
         val output = tempDir.resolve("build/filtered/toggles.json")
 
-        val task = registerFilterTask(
-            inputSpec = input,
-            outputRelativePath = "build/filtered/toggles.json",
-            allowedOperations = mapOf(
-                "/kept" to listOf("GET"),
-                "/method-missing" to listOf("post"),
-            ),
-        ) {
-            pruneUnreachableSchemas.set(false)
-            rewriteNullTypes.set(false)
-            collapseRedundantEnumAllOf.set(false)
-        }
+        val task =
+            registerFilterTask(
+                inputSpec = input,
+                outputRelativePath = "build/filtered/toggles.json",
+                allowedOperations =
+                    mapOf(
+                        "/kept" to listOf("GET"),
+                        "/method-missing" to listOf("post"),
+                    ),
+            ) {
+                pruneUnreachableSchemas.set(false)
+                rewriteNullTypes.set(false)
+                collapseRedundantEnumAllOf.set(false)
+            }
 
         task.filter()
 
@@ -442,7 +520,14 @@ class OpenApiClientPluginTest {
         val paths = root.path("paths")
         assertTrue(paths.has("/kept"))
         assertFalse(paths.path("/kept").has("delete"))
-        assertEquals("Fixture", paths.path("/kept").path("get").path("tags")[0].asText())
+        assertEquals(
+            "Fixture",
+            paths
+                .path("/kept")
+                .path("get")
+                .path("tags")[0]
+                .asText(),
+        )
         assertFalse(paths.has("/method-missing"))
         assertFalse(paths.has("/dropped"))
 
@@ -458,11 +543,12 @@ class OpenApiClientPluginTest {
         val input = writeSpec("specs/filter-escaped-pointers.json", escapedPointerFixture())
         val output = tempDir.resolve("build/filtered/escaped-pointers.json")
 
-        val task = registerFilterTask(
-            inputSpec = input,
-            outputRelativePath = "build/filtered/escaped-pointers.json",
-            allowedOperations = mapOf("/escaped" to listOf("get")),
-        )
+        val task =
+            registerFilterTask(
+                inputSpec = input,
+                outputRelativePath = "build/filtered/escaped-pointers.json",
+                allowedOperations = mapOf("/escaped" to listOf("get")),
+            )
 
         task.filter()
 
@@ -480,7 +566,7 @@ class OpenApiClientPluginTest {
         writeBuildFile(
             """
             plugins {
-                id("dev.extratoast.openapi-client")
+                id("dev.jorisjonkers.openapi-client")
             }
 
             openApiExternalSpecs {
@@ -508,7 +594,15 @@ class OpenApiClientPluginTest {
         val root = jsonMapper.readTree(tempDir.resolve("build/filtered/from-dsl.json").toFile())
         assertTrue(root.path("paths").has("/users/@me"))
         assertFalse(root.path("paths").has("/unused"))
-        assertEquals("Fixture", root.path("paths").path("/users/@me").path("get").path("tags")[0].asText())
+        assertEquals(
+            "Fixture",
+            root
+                .path("paths")
+                .path("/users/@me")
+                .path("get")
+                .path("tags")[0]
+                .asText(),
+        )
         assertFalse(root.path("components").path("schemas").has("UnusedSchema"))
     }
 
@@ -516,22 +610,26 @@ class OpenApiClientPluginTest {
     fun `provenance banner task writes a generic banner without duplicating it`() {
         val input = writeSpec("generated/raw.ts", "export type Pet = { id: string }\n")
         val output = tempDir.resolve("generated/with-banner.ts")
-        val project = ProjectBuilder.builder()
-            .withProjectDir(tempDir.toFile())
-            .build()
-        val task = project.tasks.register("banner", OpenApiProvenanceBannerTask::class.java) {
-            inputFile.set(project.layout.projectDirectory.file(input.relativeToTempDir()))
-            outputFile.set(project.layout.projectDirectory.file(output.relativeToTempDir()))
-            bannerText.set(
-                """
-                /**
-                 * AUTO-GENERATED.
-                 * Source: api/openapi.json
-                 * Regenerate with: ./gradlew generate
-                 */
-                """.trimIndent(),
-            )
-        }.get()
+        val project =
+            ProjectBuilder
+                .builder()
+                .withProjectDir(tempDir.toFile())
+                .build()
+        val task =
+            project.tasks
+                .register("banner", OpenApiProvenanceBannerTask::class.java) {
+                    inputFile.set(project.layout.projectDirectory.file(input.relativeToTempDir()))
+                    outputFile.set(project.layout.projectDirectory.file(output.relativeToTempDir()))
+                    bannerText.set(
+                        """
+                        /**
+                         * AUTO-GENERATED.
+                         * Source: api/openapi.json
+                         * Regenerate with: ./gradlew generate
+                         */
+                        """.trimIndent(),
+                    )
+                }.get()
 
         task.applyBanner()
         task.inputFile.set(project.layout.projectDirectory.file(output.relativeToTempDir()))
@@ -547,14 +645,18 @@ class OpenApiClientPluginTest {
     fun `drift check task compares generated artifacts exactly`() {
         val expected = writeSpec("generated/expected.ts", "same\n")
         val actual = writeSpec("generated/actual.ts", "same\n")
-        val project = ProjectBuilder.builder()
-            .withProjectDir(tempDir.toFile())
-            .build()
-        val task = project.tasks.register("drift", OpenApiDriftCheckTask::class.java) {
-            expectedFile.set(project.layout.projectDirectory.file(expected.relativeToTempDir()))
-            actualFile.set(project.layout.projectDirectory.file(actual.relativeToTempDir()))
-            failureMessage.set("contract drift")
-        }.get()
+        val project =
+            ProjectBuilder
+                .builder()
+                .withProjectDir(tempDir.toFile())
+                .build()
+        val task =
+            project.tasks
+                .register("drift", OpenApiDriftCheckTask::class.java) {
+                    expectedFile.set(project.layout.projectDirectory.file(expected.relativeToTempDir()))
+                    actualFile.set(project.layout.projectDirectory.file(actual.relativeToTempDir()))
+                    failureMessage.set("contract drift")
+                }.get()
 
         task.checkDrift()
 
@@ -566,10 +668,11 @@ class OpenApiClientPluginTest {
 
     @Test
     fun `external spec tasks validate empty specs uris missing raws and safe paths directly`() {
-        val source = writeSpec(
-            "fixtures/external-valid.json",
-            """{"openapi":"3.0.3","info":{"title":"Valid","version":"1.0.0"},"paths":{}}""",
-        )
+        val source =
+            writeSpec(
+                "fixtures/external-valid.json",
+                """{"openapi":"3.0.3","info":{"title":"Valid","version":"1.0.0"},"paths":{}}""",
+            )
         val sourceUri = source.toUri().toString()
 
         externalSpecHarness().let { harness ->
@@ -583,9 +686,16 @@ class OpenApiClientPluginTest {
             assertEquals(mapOf("configured" to "nested/raw.yml"), harness.download.configuredRawFileNames)
             assertEquals(mapOf("configured" to "nested/raw.yml"), harness.normalize.configuredRawFileNames)
             assertEquals(mapOf("configured" to "nested/out.JSON"), harness.normalize.configuredNormalizedFileNames)
-            assertTrue(harness.normalize.rawSpecFiles.files.single().toPath().endsWith("openapi-specs/nested/raw.yml"))
             assertTrue(
-                harness.normalize.normalizedSpecFiles.files.single().toPath()
+                harness.normalize.rawSpecFiles.files
+                    .single()
+                    .toPath()
+                    .endsWith("openapi-specs/nested/raw.yml"),
+            )
+            assertTrue(
+                harness.normalize.normalizedSpecFiles.files
+                    .single()
+                    .toPath()
                     .endsWith("openapi-specs/nested/out.JSON"),
             )
         }
@@ -693,15 +803,16 @@ class OpenApiClientPluginTest {
             OpenApiSpecJson.read(empty.toFile())
         }
 
-        val source = writeSpec(
-            "specs/unsorted.json",
-            """
-            {
-              "z": [{"b": 2, "a": 1}],
-              "a": {"d": 4, "c": 3}
-            }
-            """.trimIndent(),
-        )
+        val source =
+            writeSpec(
+                "specs/unsorted.json",
+                """
+                {
+                  "z": [{"b": 2, "a": 1}],
+                  "a": {"d": 4, "c": 3}
+                }
+                """.trimIndent(),
+            )
         val target = tempDir.resolve("build/normalized/sorted.json")
         target.parent.createDirectories()
 
@@ -714,9 +825,11 @@ class OpenApiClientPluginTest {
     fun `applies plugin conventions to a Gradle project`() {
         writeBuildFile("")
         writeResource("specs/sample.yml", tempDir.resolve("specs/sample.yml"))
-        val project = ProjectBuilder.builder()
-            .withProjectDir(tempDir.toFile())
-            .build()
+        val project =
+            ProjectBuilder
+                .builder()
+                .withProjectDir(tempDir.toFile())
+                .build()
 
         OpenApiClientPlugin().apply(project)
 
@@ -773,7 +886,11 @@ class OpenApiClientPluginTest {
         assertTrue(alias.taskDependencies.getDependencies(alias).contains(generate))
         assertEquals(
             tempDir.resolve("openapi-specs").toFile(),
-            project.extensions.getByType(OpenApiExternalSpecsExtension::class.java).specDirectory.get().asFile,
+            project.extensions
+                .getByType(OpenApiExternalSpecsExtension::class.java)
+                .specDirectory
+                .get()
+                .asFile,
         )
         assertTrue(project.tasks.names.contains("downloadExternalOpenApiSpecs"))
         assertTrue(project.tasks.names.contains("normalizeExternalOpenApiSpecs"))
@@ -797,9 +914,11 @@ class OpenApiClientPluginTest {
     fun `allows Java generator convention options to be overridden`() {
         writeBuildFile("")
         writeResource("specs/sample.yml", tempDir.resolve("specs/sample.yml"))
-        val project = ProjectBuilder.builder()
-            .withProjectDir(tempDir.toFile())
-            .build()
+        val project =
+            ProjectBuilder
+                .builder()
+                .withProjectDir(tempDir.toFile())
+                .build()
 
         OpenApiClientPlugin().apply(project)
         val extension = project.extensions.getByType(OpenApiClientExtension::class.java)
@@ -856,40 +975,72 @@ class OpenApiClientPluginTest {
     }
 
     @Test
+    fun `kotlin spring rest client mode configures generator conventions`() {
+        writeBuildFile("")
+        writeResource("specs/sample.yml", tempDir.resolve("specs/sample.yml"))
+        val project =
+            ProjectBuilder
+                .builder()
+                .withProjectDir(tempDir.toFile())
+                .build()
+
+        OpenApiClientPlugin().apply(project)
+        val extension = project.extensions.getByType(OpenApiClientExtension::class.java)
+        extension.useKotlinSpringRestClient()
+
+        val generate = project.tasks.named("generate", GenerateTask::class.java).get()
+
+        assertEquals("kotlin", generate.generatorName.get())
+        assertEquals("jvm-spring-restclient", generate.library.get())
+        assertEquals("src/main/kotlin", generate.configOptions.get()["sourceFolder"])
+        assertEquals("jackson", generate.configOptions.get()["serializationLibrary"])
+        assertEquals("false", generate.configOptions.get()["useJackson3"])
+        assertEquals("UPPERCASE", generate.configOptions.get()["enumPropertyNaming"])
+        assertEquals("true", generate.configOptions.get()["useSpringBoot3"])
+        assertEquals("6.2.8", extension.springVersion.get())
+    }
+
+    @Test
     fun `uses build file as inert generate input until a spec is configured`() {
         writeBuildFile("")
-        val project = ProjectBuilder.builder()
-            .withProjectDir(tempDir.toFile())
-            .build()
+        val project =
+            ProjectBuilder
+                .builder()
+                .withProjectDir(tempDir.toFile())
+                .build()
 
         OpenApiClientPlugin().apply(project)
 
         val generate = project.tasks.named("generate", GenerateTask::class.java).get()
         assertEquals(project.buildFile, generate.inputSpec.get().asFile)
-        assertTrue(generate.inputs.files.files.contains(project.buildFile))
+        assertTrue(
+            generate.inputs.files.files
+                .contains(project.buildFile),
+        )
     }
 
     @Test
     fun `validates yaml and json specs directly`() {
-        val yaml = writeSpec(
-            "specs/direct.yml",
-            """
-            openapi: 3.0.3
-            info:
-              title: Direct API
-              version: 1.0.0
-            paths:
-              /pets:
-                get:
-                  tags:
-                    - Pets
-                  responses:
-                    '204':
-                      description: No content.
-              /metadata:
-                parameters: []
-            """.trimIndent(),
-        )
+        val yaml =
+            writeSpec(
+                "specs/direct.yml",
+                """
+                openapi: 3.0.3
+                info:
+                  title: Direct API
+                  version: 1.0.0
+                paths:
+                  /pets:
+                    get:
+                      tags:
+                        - Pets
+                      responses:
+                        '204':
+                          description: No content.
+                  /metadata:
+                    parameters: []
+                """.trimIndent(),
+            )
         validateConfiguration(
             specFile = yaml,
             apis = listOf("Pets"),
@@ -897,16 +1048,17 @@ class OpenApiClientPluginTest {
             typeMappings = mapOf("uuid" to "java.util.UUID"),
         )
 
-        val json = writeSpec(
-            "specs/direct.json",
-            """
-            {
-              "openapi": "3.0.3",
-              "info": {"title": "Direct JSON API", "version": "1.0.0"},
-              "paths": {}
-            }
-            """.trimIndent(),
-        )
+        val json =
+            writeSpec(
+                "specs/direct.json",
+                """
+                {
+                  "openapi": "3.0.3",
+                  "info": {"title": "Direct JSON API", "version": "1.0.0"},
+                  "paths": {}
+                }
+                """.trimIndent(),
+            )
         validateConfiguration(specFile = json, apis = emptyList())
     }
 
@@ -950,15 +1102,16 @@ class OpenApiClientPluginTest {
         val invalidJson = writeSpec("specs/broken.json", "{")
         assertValidationFails("OpenAPI spec must be valid JSON or YAML", specFile = invalidJson)
 
-        val missingPaths = writeSpec(
-            "specs/missing-paths.yml",
-            """
-            openapi: 3.0.3
-            info:
-              title: Missing paths
-              version: 1.0.0
-            """.trimIndent(),
-        )
+        val missingPaths =
+            writeSpec(
+                "specs/missing-paths.yml",
+                """
+                openapi: 3.0.3
+                info:
+                  title: Missing paths
+                  version: 1.0.0
+                """.trimIndent(),
+            )
         assertValidationFails("OpenAPI spec must contain a 'paths' object", specFile = missingPaths)
 
         writeResource("specs/untagged.yml", tempDir.resolve("specs/untagged.yml"))
@@ -977,23 +1130,35 @@ class OpenApiClientPluginTest {
         tempDir.resolve("build.gradle.kts").writeText(contents)
     }
 
-    private fun writeResource(resourcePath: String, target: Path) {
+    private fun writeResource(
+        resourcePath: String,
+        target: Path,
+    ) {
         target.parent.createDirectories()
-        val resource = checkNotNull(javaClass.classLoader.getResource(resourcePath)) {
-            "Missing test resource: $resourcePath"
-        }
+        val resource =
+            checkNotNull(javaClass.classLoader.getResource(resourcePath)) {
+                "Missing test resource: $resourcePath"
+            }
         target.writeText(resource.readText())
     }
 
+    private fun hasKotlinSource(directory: Path): Boolean =
+        Files.exists(directory) &&
+            Files.walk(directory).use { paths ->
+                paths.anyMatch { path -> path.fileName.toString().endsWith(".kt") }
+            }
+
     private fun runGradle(vararg arguments: String): BuildResult =
-        GradleRunner.create()
+        GradleRunner
+            .create()
             .withProjectDir(tempDir.toFile())
             .withArguments(arguments.toList() + "--stacktrace")
             .withPluginClasspath()
             .build()
 
     private fun runGradleAndFail(vararg arguments: String): BuildResult =
-        GradleRunner.create()
+        GradleRunner
+            .create()
             .withProjectDir(tempDir.toFile())
             .withArguments(arguments.toList() + "--stacktrace")
             .withPluginClasspath()
@@ -1005,7 +1170,7 @@ class OpenApiClientPluginTest {
     ): String =
         """
         plugins {
-            id("dev.extratoast.openapi-client")
+            id("dev.jorisjonkers.openapi-client")
         }
 
         openApiClient {
@@ -1017,7 +1182,10 @@ class OpenApiClientPluginTest {
         }
         """.trimIndent()
 
-    private fun writeSpec(relativePath: String, contents: String): Path {
+    private fun writeSpec(
+        relativePath: String,
+        contents: String,
+    ): Path {
         val target = tempDir.resolve(relativePath)
         target.parent.createDirectories()
         target.writeText(contents)
@@ -1031,17 +1199,20 @@ class OpenApiClientPluginTest {
         injectedTag: String = "Fixture",
         configure: OpenApiFilterSpecTask.() -> Unit = {},
     ): OpenApiFilterSpecTask {
-        val project = ProjectBuilder.builder()
-            .withProjectDir(tempDir.toFile())
-            .build()
+        val project =
+            ProjectBuilder
+                .builder()
+                .withProjectDir(tempDir.toFile())
+                .build()
 
-        return project.tasks.register("filterSpec", OpenApiFilterSpecTask::class.java) {
-            this.inputSpec.set(project.layout.projectDirectory.file(inputSpec.relativeToTempDir()))
-            outputSpec.set(project.layout.projectDirectory.file(outputRelativePath))
-            this.allowedOperations.set(allowedOperations)
-            this.injectedTag.set(injectedTag)
-            configure()
-        }.get()
+        return project.tasks
+            .register("filterSpec", OpenApiFilterSpecTask::class.java) {
+                this.inputSpec.set(project.layout.projectDirectory.file(inputSpec.relativeToTempDir()))
+                outputSpec.set(project.layout.projectDirectory.file(outputRelativePath))
+                this.allowedOperations.set(allowedOperations)
+                this.injectedTag.set(injectedTag)
+                configure()
+            }.get()
     }
 
     private fun assertFilterFails(
@@ -1051,21 +1222,26 @@ class OpenApiClientPluginTest {
         injectedTag: String = "Fixture",
         outputRelativePath: String = "build/filtered/failing.json",
     ) {
-        val task = registerFilterTask(
-            inputSpec = inputSpec,
-            outputRelativePath = outputRelativePath,
-            allowedOperations = allowedOperations,
-            injectedTag = injectedTag,
-        )
+        val task =
+            registerFilterTask(
+                inputSpec = inputSpec,
+                outputRelativePath = outputRelativePath,
+                allowedOperations = allowedOperations,
+                injectedTag = injectedTag,
+            )
         assertGradleFails(expectedMessage) {
             task.filter()
         }
     }
 
-    private fun assertGradleFails(expectedMessage: String, action: () -> Unit) {
-        val error = assertThrows(GradleException::class.java) {
-            action()
-        }
+    private fun assertGradleFails(
+        expectedMessage: String,
+        action: () -> Unit,
+    ) {
+        val error =
+            assertThrows(GradleException::class.java) {
+                action()
+            }
         assertTrue(
             error.message?.contains(expectedMessage) == true,
             "Expected '${error.message}' to contain '$expectedMessage'",
@@ -1073,25 +1249,31 @@ class OpenApiClientPluginTest {
     }
 
     private fun externalSpecHarness(): ExternalSpecHarness {
-        val project = ProjectBuilder.builder()
-            .withProjectDir(tempDir.toFile())
-            .build()
+        val project =
+            ProjectBuilder
+                .builder()
+                .withProjectDir(tempDir.toFile())
+                .build()
         val extension = project.objects.newInstance(OpenApiExternalSpecsExtension::class.java)
         extension.specDirectory.set(project.layout.projectDirectory.dir("openapi-specs"))
-        val download = project.tasks.register(
-            "downloadExternalOpenApiSpecs",
-            DownloadExternalOpenApiSpecsTask::class.java,
-        ) {
-            specDirectory.set(extension.specDirectory)
-            configuredSpecs = extension.specs
-        }.get()
-        val normalize = project.tasks.register(
-            "normalizeExternalOpenApiSpecs",
-            NormalizeExternalOpenApiSpecsTask::class.java,
-        ) {
-            specDirectory.set(extension.specDirectory)
-            configuredSpecs = extension.specs
-        }.get()
+        val download =
+            project.tasks
+                .register(
+                    "downloadExternalOpenApiSpecs",
+                    DownloadExternalOpenApiSpecsTask::class.java,
+                ) {
+                    specDirectory.set(extension.specDirectory)
+                    configuredSpecs = extension.specs
+                }.get()
+        val normalize =
+            project.tasks
+                .register(
+                    "normalizeExternalOpenApiSpecs",
+                    NormalizeExternalOpenApiSpecsTask::class.java,
+                ) {
+                    specDirectory.set(extension.specDirectory)
+                    configuredSpecs = extension.specs
+                }.get()
 
         return ExternalSpecHarness(extension, download, normalize)
     }
@@ -1102,8 +1284,7 @@ class OpenApiClientPluginTest {
         val normalize: NormalizeExternalOpenApiSpecsTask,
     )
 
-    private fun Path.relativeToTempDir(): String =
-        tempDir.relativize(this).toString().replace("\\", "/")
+    private fun Path.relativeToTempDir(): String = tempDir.relativize(this).toString().replace("\\", "/")
 
     private fun validateConfiguration(
         specFile: Path?,
@@ -1138,18 +1319,19 @@ class OpenApiClientPluginTest {
         schemaMappings: Map<String, String> = emptyMap(),
         typeMappings: Map<String, String> = emptyMap(),
     ) {
-        val error = assertThrows(GradleException::class.java) {
-            validateConfiguration(
-                specPath = specPath,
-                specFile = specFile,
-                apiPackage = apiPackage,
-                modelPackage = modelPackage,
-                packageName = packageName,
-                apis = apis,
-                schemaMappings = schemaMappings,
-                typeMappings = typeMappings,
-            )
-        }
+        val error =
+            assertThrows(GradleException::class.java) {
+                validateConfiguration(
+                    specPath = specPath,
+                    specFile = specFile,
+                    apiPackage = apiPackage,
+                    modelPackage = modelPackage,
+                    packageName = packageName,
+                    apis = apis,
+                    schemaMappings = schemaMappings,
+                    typeMappings = typeMappings,
+                )
+            }
         assertTrue(
             error.message?.contains(expectedMessage) == true,
             "Expected '${error.message}' to contain '$expectedMessage'",
