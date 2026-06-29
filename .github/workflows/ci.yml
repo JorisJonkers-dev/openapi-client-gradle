@@ -1,51 +1,54 @@
-name: CI
+'name': 'CI'
 
-on:
-  pull_request:
-  push:
-    branches: [main]
-  workflow_dispatch:
+'on':
+  'pull_request':
+  'push':
+    'branches':
+      - 'main'
+  'workflow_dispatch':
 
-concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+'concurrency':
+  'group': 'ci-${{ github.workflow }}-${{ github.ref }}'
+  'cancel-in-progress': '${{ github.ref != ''refs/heads/main'' }}'
 
-permissions:
-  contents: read
+'permissions':
+  'contents': 'read'
 
-jobs:
-  workflow-lint:
-    name: Workflow Lint
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Download actionlint
-        id: actionlint
-        shell: bash
-        run: bash <(curl --fail --silent --show-error --location https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
-      - name: Lint GitHub Actions workflows
-        shell: bash
-        run: |
+'jobs':
+  'workflow-lint':
+    'name': 'Workflow Lint'
+    'runs-on': 'ubuntu-latest'
+    'steps':
+      - 'uses': 'actions/checkout@v6'
+      - 'name': 'Download actionlint'
+        'id': 'actionlint'
+        'shell': 'bash'
+        'run': 'bash <(curl --fail --silent --show-error --location https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)'
+      - 'name': 'Lint GitHub Actions workflows'
+        'shell': 'bash'
+        'run': |
           "${{ steps.actionlint.outputs.executable }}" -color .github/workflows/*.yml
 
-  jvm-ci:
-    name: JVM CI
-    uses: JorisJonkers-dev/github-workflows/.github/workflows/jvm-ci.yml@v0.6.0
-    with:
-      java-version: "21"
-      gradle-args: --no-daemon --stacktrace
-      lint-gradle-args: build
-      test-gradle-args: test
-    secrets:
-      packages-token: ${{ secrets.GITHUB_TOKEN }}
+  'jvm-ci':
+    'name': 'JVM CI'
+    'uses': 'JorisJonkers-dev/github-workflows/.github/workflows/jvm-ci.yml@v0.7.3'
+    'with':
+      'java-version': '21'
+      'gradle-args': '--no-daemon --stacktrace'
+      'lint-gradle-args': 'build'
+      'test-gradle-args': 'test'
+    'secrets':
+      'packages-token': '${{ secrets.GITHUB_TOKEN }}'
 
-  pipeline-complete:
-    name: Pipeline Complete
-    if: always()
-    needs: [workflow-lint, jvm-ci]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Verify all gating jobs succeeded
-        uses: re-actors/alls-green@release/v1
-        with:
-          jobs: ${{ toJSON(needs) }}
+  'pipeline-complete':
+    'name': 'Pipeline Complete'
+    'if': 'always()'
+    'needs':
+      - 'workflow-lint'
+      - 'jvm-ci'
+    'runs-on': 'ubuntu-latest'
+    'steps':
+      - 'name': 'Verify all gating jobs succeeded'
+        'uses': 're-actors/alls-green@release/v1'
+        'with':
+          'jobs': '${{ toJSON(needs) }}'

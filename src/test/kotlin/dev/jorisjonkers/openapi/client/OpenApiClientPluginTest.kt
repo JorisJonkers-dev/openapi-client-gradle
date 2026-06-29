@@ -87,6 +87,10 @@ class OpenApiClientPluginTest {
 
         assertEquals(TaskOutcome.SUCCESS, result.task(":generate")?.outcome)
         assertTrue(hasKotlinSource(tempDir.resolve("build/generated/openapi/src/main/kotlin")))
+
+        val serializer = generatedSerializerText()
+        assertFalse(serializer.contains(".setSerializationInclusion("))
+        assertTrue(serializer.contains(".setDefaultPropertyInclusion(JsonInclude.Include.NON_ABSENT)"))
     }
 
     @Test
@@ -1130,6 +1134,17 @@ class OpenApiClientPluginTest {
         Files.exists(directory) &&
             Files.walk(directory).use { paths ->
                 paths.anyMatch { path -> path.fileName.toString().endsWith(".kt") }
+            }
+
+    private fun generatedSerializerText(): String =
+        Files
+            .walk(tempDir.resolve("build/generated/openapi/src/main/kotlin"))
+            .use { paths ->
+                paths
+                    .filter { path -> path.fileName.toString() == "Serializer.kt" }
+                    .findFirst()
+                    .orElseThrow { AssertionError("Generated Serializer.kt was not found") }
+                    .readText()
             }
 
     private fun runGradle(vararg arguments: String): BuildResult =

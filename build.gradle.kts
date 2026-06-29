@@ -65,8 +65,10 @@ publishing {
             url.set("https://github.com/JorisJonkers-dev/openapi-client-gradle")
             licenses {
                 license {
-                    name.set("MIT")
-                    url.set("https://opensource.org/licenses/MIT")
+                    name.set("Joris Jonkers Proprietary Source-Available License 1.0")
+                    url.set("https://github.com/JorisJonkers-dev/openapi-client-gradle/blob/main/LICENSE")
+                    distribution.set("repo")
+                    comments.set("SPDX-License-Identifier: LicenseRef-JorisJonkers-Proprietary-1.0")
                 }
             }
             developers {

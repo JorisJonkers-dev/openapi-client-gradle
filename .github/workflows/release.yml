@@ -1,59 +1,61 @@
-name: Release
+'name': 'Release'
 
-on:
-  push:
-    branches: [main]
+'on':
+  'push':
+    'branches':
+      - 'main'
 
-permissions:
-  contents: write
-  pull-requests: write
+'permissions':
+  'contents': 'write'
+  'pull-requests': 'write'
 
-jobs:
-  release-please:
-    runs-on: ubuntu-latest
-    outputs:
-      release_created: ${{ steps.release.outputs.release_created }}
-      tag_name: ${{ steps.release.outputs.tag_name }}
-    steps:
+'jobs':
+  'release-please':
+    'runs-on': 'ubuntu-latest'
+    'outputs':
+      'release_created': '${{ steps.release.outputs.release_created }}'
+      'tag_name': '${{ steps.release.outputs.tag_name }}'
+    'steps':
       # Author the release PR with the personal-stack-agents App token (not the
       # default GITHUB_TOKEN) so CI runs on the PR without a manual approval
       # gate. Best-effort: falls back to GITHUB_TOKEN when the App secrets or
       # installation are absent.
-      - uses: actions/create-github-app-token@v2
-        id: app-token
-        continue-on-error: true
-        with:
-          app-id: ${{ secrets.RELEASE_APP_ID }}
-          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
-      - id: release
-        uses: googleapis/release-please-action@v4
-        with:
-          token: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
-          config-file: release-please-config.json
-          manifest-file: .release-please-manifest.json
+      - 'uses': 'actions/create-github-app-token@v3'
+        'id': 'app-token'
+        'continue-on-error': true
+        'with':
+          'app-id': '${{ secrets.RELEASE_APP_ID }}'
+          'private-key': '${{ secrets.RELEASE_APP_PRIVATE_KEY }}'
+      - 'id': 'release'
+        'uses': 'googleapis/release-please-action@v5'
+        'with':
+          'token': '${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}'
+          'config-file': 'release-please-config.json'
+          'manifest-file': '.release-please-manifest.json'
 
-  publish:
-    name: Publish Maven Artifact
-    if: ${{ needs.release-please.outputs.release_created == 'true' }}
-    needs: [release-please]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ needs.release-please.outputs.tag_name }}
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '21'
-      - uses: gradle/actions/setup-gradle@v4
-      - name: Publish to GitHub Packages
-        run: |
+  'publish':
+    'name': 'Publish Maven Artifact'
+    'if': '${{ needs.release-please.outputs.release_created == ''true'' }}'
+    'needs':
+      - 'release-please'
+    'runs-on': 'ubuntu-latest'
+    'permissions':
+      'contents': 'read'
+      'packages': 'write'
+    'steps':
+      - 'uses': 'actions/checkout@v6'
+        'with':
+          'ref': '${{ needs.release-please.outputs.tag_name }}'
+      - 'uses': 'actions/setup-java@v5'
+        'with':
+          'distribution': 'temurin'
+          'java-version': '21'
+      - 'uses': 'gradle/actions/setup-gradle@v6'
+      - 'name': 'Publish to GitHub Packages'
+        'run': |
           artifact_version="${TAG_NAME#v}"
           ./gradlew -PartifactVersion="${artifact_version}" publish --no-daemon --no-parallel --max-workers=1
-        env:
-          GITHUB_ACTOR: ${{ github.actor }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG_NAME: ${{ needs.release-please.outputs.tag_name }}
+        'env':
+          'GITHUB_ACTOR': '${{ github.actor }}'
+          'GITHUB_TOKEN': '${{ secrets.GITHUB_TOKEN }}'
+          'TAG_NAME': '${{ needs.release-please.outputs.tag_name }}'
