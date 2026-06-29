@@ -1,22 +1,36 @@
 # openapi-client-gradle
 
-Gradle plugin for generating typed JVM clients from local OpenAPI specs owned by the consuming repo.
+Gradle plugin for generating typed JVM clients from local OpenAPI specs owned by
+the consuming repository.
 
-## Coordinates
+## What It Is
 
-Published Maven artifact:
+`openapi-client-gradle` provides the `dev.jorisjonkers.openapi-client` Gradle
+plugin. It wraps OpenAPI Generator defaults used by JorisJonkers-dev JVM
+services, adds local-spec validation, and exposes helper tasks for external spec
+download, normalization, filtering, provenance banners, and drift checks.
+
+## Local Use
+
+```bash
+./gradlew test
+```
+
+## Plugin
+
+```kotlin
+plugins {
+    id("dev.jorisjonkers.openapi-client") version "<version>"
+}
+```
+
+The plugin artifact is published as:
 
 ```text
 dev.jorisjonkers:openapi-client-gradle:<version>
 ```
 
-Plugin id:
-
-```text
-dev.jorisjonkers.openapi-client
-```
-
-Consumers resolve the plugin from GitHub Packages in `settings.gradle.kts`:
+Consumers resolve it from GitHub Packages:
 
 ```kotlin
 pluginManagement {
@@ -39,165 +53,53 @@ pluginManagement {
 }
 ```
 
-Then apply the pinned plugin version in a client module:
-
-```kotlin
-plugins {
-    id("dev.jorisjonkers.openapi-client") version "0.2.0"
-}
-```
-
 ## Configuration
 
 ```kotlin
 openApiClient {
-    specPath.set("libs/openapi-specs/vendor.yml")
-    apiPackage.set("com.example.clients.vendor.api")
-    modelPackage.set("com.example.clients.vendor.model")
-    packageName.set("com.example.clients.vendor.invoker")
-    apis.set(listOf("Messages", "Contacts"))
-    schemaMappings.set(
-        mapOf(
-            "external_identifier_parameter" to "java.lang.String",
-        ),
-    )
-    typeMappings.set(emptyMap())
-
-    // Optional overrides; defaults match the extracted Java restclient convention.
-    generatorName.set("java")
-    library.set("restclient")
-    sourceFolder.set("src/main/java")
-    serializationLibrary.set("jackson")
-    dateLibrary.set("java8")
-    useJakartaEe.set(true)
-    useBeanValidation.set(true)
-    useJackson3.set(true)
-    useSpringBoot4.set(true)
-    enumPropertyNaming.set("MACRO_CASE")
-    inlineSchemaOptions.set(mapOf("RESOLVE_INLINE_ENUMS" to "true"))
+    specPath.set("libs/openapi-specs/service.yml")
+    apiPackage.set("dev.jorisjonkers.service.client.api")
+    modelPackage.set("dev.jorisjonkers.service.client.model")
+    packageName.set("dev.jorisjonkers.service.client")
+    apis.set(listOf("Service"))
 }
 ```
 
-For Kotlin clients backed by Spring `RestClient`, use the built-in mode:
+Required fields are `specPath`, `apiPackage`, `modelPackage`, and `packageName`.
+By default the plugin generates a Java `restclient` client using Jackson,
+Jakarta validation, and Spring client dependencies. Kotlin Spring `RestClient`
+generation is available through:
 
 ```kotlin
 openApiClient {
     useKotlinSpringRestClient()
-    specPath.set("libs/openapi-specs/vendor.yml")
-    apiPackage.set("dev.jorisjonkers.vendor.client.api")
-    modelPackage.set("dev.jorisjonkers.vendor.client.model")
-    packageName.set("dev.jorisjonkers.vendor.client")
 }
 ```
 
-Required fields:
-
-- `specPath`: local JSON/YAML OpenAPI document, absolute or relative to the consuming root project.
-- `apiPackage`: package for generated API classes.
-- `modelPackage`: package for generated model classes.
-- `packageName`: invoker/support package.
-
-Optional fields:
-
-- `apis`: selected OpenAPI tags/API groups. Empty means generate all APIs.
-- `models`: selected generated models. Empty keeps generator default behavior.
-- `supportingFiles`: selected supporting files. Empty keeps generator default behavior.
-- `schemaMappings`: OpenAPI Generator schema mappings.
-- `typeMappings`: OpenAPI Generator type mappings.
-- `configOptions` and `inlineSchemaOptions`: additional OpenAPI Generator options.
-
-The plugin registers `build/generated/openapi/<sourceFolder>` as main JVM source and makes compilation depend on `generate`. Generated clients use OpenAPI Generator `java` + `restclient`, Jackson 3, Jakarta annotations/validation, and Spring 7 client dependencies by default. Dependency versions are exposed as extension properties for consumers that need a different Spring, Jackson, or Jakarta stack.
+Additional OpenAPI Generator settings can be passed through `configOptions`,
+`inlineSchemaOptions`, `schemaMappings`, `typeMappings`, `apis`, `models`, and
+`supportingFiles`.
 
 ## External Specs
 
-Spec acquisition, refresh, filtering, and vendor-specific values stay in the consuming repo. The plugin provides opt-in generic helpers for common external-spec lifecycle steps:
-
-```kotlin
-openApiExternalSpecs {
-    specDirectory.set(rootProject.layout.projectDirectory.dir("libs/openapi-specs"))
-
-    specs {
-        create("vendor") {
-            sourceUrl.set(providers.gradleProperty("vendorOpenApiUrl"))
-            rawFileName.set("vendor.raw.json")
-            normalizedFileName.set("vendor.json")
-        }
-    }
-
-    filters {
-        create("vendorClient") {
-            inputSpec.set("libs/openapi-specs/vendor.json")
-            outputSpec.set("services/api/clients/vendor/build/vendor-filtered.json")
-            allowedOperations.set(
-                mapOf(
-                    "/accounts/{account_id}" to listOf("get"),
-                    "/messages" to listOf("post"),
-                ),
-            )
-            injectedTag.set("Vendor")
-            pruneUnreachableSchemas.set(true)
-            rewriteNullTypes.set(true)
-            collapseRedundantEnumAllOf.set(true)
-        }
-    }
-}
-
-tasks.named("generate") {
-    dependsOn("filterVendorClientOpenApiSpec")
-}
-
-openApiClient {
-    specPath.set("services/api/clients/vendor/build/vendor-filtered.json")
-    apiPackage.set("com.example.clients.vendor.api")
-    modelPackage.set("com.example.clients.vendor.model")
-    packageName.set("com.example.clients.vendor.invoker")
-    apis.set(listOf("Vendor"))
-}
-```
-
-`downloadExternalOpenApiSpecs` downloads configured sources to the central directory. `normalizeExternalOpenApiSpecs` converts configured JSON/YAML raw files to deterministic minified JSON. Named filters register tasks named `filter<Name>OpenApiSpec`.
-
-Validation runs after `generate` dependencies, so prepared specs are checked after the prep task writes them. Vendor URLs, operation allow lists, and package names remain consumer-owned configuration.
-
-## Provenance and Drift
-
-The plugin also exposes generic task types for generated text artifacts:
-
-```kotlin
-tasks.register<dev.jorisjonkers.openapi.client.OpenApiProvenanceBannerTask>("bannerGeneratedApi") {
-    inputFile.set(layout.buildDirectory.file("generated/api.tmp.ts"))
-    outputFile.set(layout.projectDirectory.file("src/api/generated.ts"))
-    bannerText.set(
-        """
-        /**
-         * AUTO-GENERATED. Do not edit by hand.
-         * Source: services/api/openapi.json
-         * Regenerate with: pnpm contract:generate
-         * Drift gate: pnpm contract:check
-         */
-        """.trimIndent(),
-    )
-}
-
-tasks.register<dev.jorisjonkers.openapi.client.OpenApiDriftCheckTask>("checkGeneratedApiDrift") {
-    expectedFile.set(layout.projectDirectory.file("src/api/generated.ts"))
-    actualFile.set(layout.buildDirectory.file("generated/api.tmp.ts"))
-    failureMessage.set("Generated API client drift detected. Regenerate the client.")
-}
-```
-
-These helpers do exact text processing only. They do not choose or invoke a frontend TypeScript generator.
+`openApiExternalSpecs` can download raw upstream specs, normalize JSON/YAML to
+deterministic minified JSON, and register named filter tasks. The consuming repo
+owns vendor URLs, operation allow lists, package names, and when those helper
+tasks run.
 
 ## Boundary
 
-The `generate` task only reads local OpenAPI documents and generates typed JVM clients. External download, normalization, filtering, provenance, and drift tasks are explicit opt-in helpers. The plugin does not hardcode vendor endpoints, publish generated client libraries, force a frontend TypeScript generator, or replace `api-contract-checks`.
+The plugin only reads local OpenAPI documents and generates JVM clients.
+It does not publish generated client libraries, choose frontend TypeScript
+generators, apply API compatibility policy, or replace `api-contract-checks`.
 
-## Publishing
+## Links
 
-Releases are created by release-please. Tag publishing runs:
+- [Organization profile](https://github.com/JorisJonkers-dev)
+- [Security policy](https://github.com/JorisJonkers-dev/.github/security/policy)
+- [Changelog](./CHANGELOG.md)
+- [License](./LICENSE)
 
-```bash
-./gradlew publish --no-daemon --no-parallel --max-workers=1
-```
-
-GitHub Packages may mark a brand-new package private by default on this account; the package owner must set it public once after the first publish.
+Copyright (c) Joris Jonkers. Source available for viewing only; use, copying,
+modification, redistribution, deployment, or reuse is not licensed. See
+[LICENSE](./LICENSE).

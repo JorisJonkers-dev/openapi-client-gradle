@@ -22,3 +22,31 @@ target/
 
 # Kotlin compiler build sessions
 .kotlin/
+
+# Planning / agent scratch artifacts
+.specify/
+specs/[0-9][0-9][0-9]-*/
+plans/
+planning/
+scratchpad/
+scratchpads/
+.agent-council/
+
+# One-off planning files that should stay in issues/PRs, not product repos
+/plan.md
+/design.md
+/research.md
+/tasks.md
+/spec.md
+/quickstart.md
+/data-model.md
+*.scratch.md
+*scratchpad*.md
+*agent-council*.md
+
+# Spec-kit and agent command leftovers
+.claude/commands/speckit*.md
+.claude/skills/speckit*/
+.agents/skills/speckit*/
+templates/**/.specify/
+templates/**/.claude/commands/speckit*.md

@@ -260,6 +260,17 @@ class OpenApiClientPlugin : Plugin<Project> {
                             configOptions = extension.configOptions.getOrElse(emptyMap()),
                         )
                     }
+
+                    doLast {
+                        if (extension.generatorName.get() == "kotlin" &&
+                            extension.serializationLibrary.get() == "jackson"
+                        ) {
+                            patchGeneratedKotlinJacksonSerializers(
+                                generatedRoot.get().asFile,
+                                extension.sourceFolder.get(),
+                            )
+                        }
+                    }
                 },
             )
 
@@ -365,6 +376,38 @@ class OpenApiClientPlugin : Plugin<Project> {
         project.tasks.matching { it.name == "compileKotlin" }.configureEach {
             dependsOn(generate)
         }
+    }
+
+    private fun patchGeneratedKotlinJacksonSerializers(
+        generatedRoot: File,
+        sourceFolder: String,
+    ) {
+        val sourceRoot = generatedRoot.resolve(sourceFolder)
+        if (!sourceRoot.isDirectory) {
+            return
+        }
+
+        sourceRoot
+            .walkTopDown()
+            .filter { it.isFile && it.name == "Serializer.kt" }
+            .forEach { serializer ->
+                val original = serializer.readText()
+                val patched =
+                    original.replace(
+                        DEPRECATED_JACKSON_SERIALIZATION_INCLUSION,
+                        JACKSON_DEFAULT_PROPERTY_INCLUSION,
+                    )
+                if (patched != original) {
+                    serializer.writeText(patched)
+                }
+            }
+    }
+
+    companion object {
+        private const val DEPRECATED_JACKSON_SERIALIZATION_INCLUSION =
+            ".setSerializationInclusion(JsonInclude.Include.NON_ABSENT)"
+        private const val JACKSON_DEFAULT_PROPERTY_INCLUSION =
+            ".setDefaultPropertyInclusion(JsonInclude.Include.NON_ABSENT)"
     }
 
     private fun Project.addGeneratedClientDependencies(extension: OpenApiClientExtension) {
