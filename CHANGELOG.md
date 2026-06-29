@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/JorisJonkers-dev/openapi-client-gradle/compare/v0.3.0...v0.3.1) (2026-06-29)
+
+
+### Bug Fixes
+
+* remove generated Kotlin Jackson deprecation ([#3](https://github.com/JorisJonkers-dev/openapi-client-gradle/issues/3)) ([68f9bdd](https://github.com/JorisJonkers-dev/openapi-client-gradle/commit/68f9bdd2678bac4ece0e309153230bf331c0b0be))
+
 ## [0.3.0](https://github.com/JorisJonkers-dev/openapi-client-gradle/compare/v0.2.0...v0.3.0) (2026-06-28)
 
 
