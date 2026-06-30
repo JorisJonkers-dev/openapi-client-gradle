@@ -21,6 +21,7 @@ import kotlin.io.path.createDirectories
 import kotlin.io.path.readText
 import kotlin.io.path.writeText
 
+@Suppress("LargeClass") // TestKit scenarios share one harness and temp project fixture.
 class OpenApiClientPluginTest {
     private val jsonMapper = ObjectMapper()
 
@@ -216,6 +217,7 @@ class OpenApiClientPluginTest {
     }
 
     @Test
+    @Suppress("LongMethod") // End-to-end external spec setup is clearer inline.
     fun `downloads and normalizes configured external specs with deterministic json output`() {
         writeSettings()
         writeSpec(
@@ -351,6 +353,7 @@ class OpenApiClientPluginTest {
     }
 
     @Test
+    @Suppress("LongMethod") // The assertion sequence documents the schema rewrite contract.
     fun `filters allowed operations injects tags and rewrites reachable schemas`() {
         writeSpec("specs/discord-like.json", discordLikeFixture())
         val output = tempDir.resolve("build/filtered/discord-like.json")
@@ -655,6 +658,7 @@ class OpenApiClientPluginTest {
     }
 
     @Test
+    @Suppress("LongMethod") // Direct task validation cases use a shared harness and input fixture.
     fun `external spec tasks validate empty specs uris missing raws and safe paths directly`() {
         val source =
             writeSpec(
@@ -810,6 +814,7 @@ class OpenApiClientPluginTest {
     }
 
     @Test
+    @Suppress("LongMethod") // Plugin convention assertions intentionally cover all generated task wiring.
     fun `applies plugin conventions to a Gradle project`() {
         writeBuildFile("")
         writeResource("specs/sample.yml", tempDir.resolve("specs/sample.yml"))
@@ -1369,6 +1374,7 @@ class OpenApiClientPluginTest {
         }
         """.trimIndent()
 
+    @Suppress("LongMethod") // Keeping this JSON literal whole makes the transform fixture auditable.
     private fun transformToggleFixture(): String =
         """
         {
@@ -1480,6 +1486,7 @@ class OpenApiClientPluginTest {
         }
         """.trimIndent()
 
+    @Suppress("LongMethod") // Keeping this JSON literal whole makes the reachable schema graph auditable.
     private fun discordLikeFixture(): String =
         """
         {
