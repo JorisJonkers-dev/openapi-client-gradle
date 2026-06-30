@@ -7,6 +7,8 @@ plugins {
     `java-gradle-plugin`
     `maven-publish`
     jacoco
+    id("dev.jorisjonkers.detekt") version "0.5.6"
+    id("dev.jorisjonkers.ktlint") version "0.5.6"
 }
 
 group = "dev.jorisjonkers"
