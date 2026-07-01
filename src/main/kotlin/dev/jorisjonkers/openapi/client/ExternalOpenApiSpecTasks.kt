@@ -25,6 +25,7 @@ import org.gradle.api.tasks.OutputFiles
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
+import org.gradle.kotlin.dsl.mapProperty
 import org.gradle.work.DisableCachingByDefault
 import java.io.File
 import java.io.IOException
@@ -85,7 +86,7 @@ open class ExternalOpenApiSpecFilter
             objects.property(String::class.java)
         val outputSpec: Property<String> = objects.property(String::class.java)
         val allowedOperations: MapProperty<String, List<String>> =
-            objects.mapProperty(String::class.java, listOfStringsType())
+            objects.mapProperty<String, List<String>>()
         val injectedTag: Property<String> = objects.property(String::class.java)
         val pruneUnreachableSchemas: Property<Boolean> =
             objects
@@ -604,6 +605,3 @@ private fun externalSpecsFailure(
     message: String,
     cause: Throwable,
 ): Nothing = throw GradleException(message, cause)
-
-@Suppress("UNCHECKED_CAST")
-private fun listOfStringsType(): Class<List<String>> = List::class.java as Class<List<String>>
