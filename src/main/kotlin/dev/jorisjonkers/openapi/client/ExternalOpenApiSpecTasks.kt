@@ -27,11 +27,13 @@ import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
 import org.gradle.work.DisableCachingByDefault
 import java.io.File
+import java.io.IOException
 import java.net.URI
+import java.net.URISyntaxException
 import java.util.Locale
 import javax.inject.Inject
 
-abstract class OpenApiExternalSpecsExtension
+open class OpenApiExternalSpecsExtension
     @Inject
     constructor(
         objects: ObjectFactory,
@@ -58,7 +60,7 @@ abstract class OpenApiExternalSpecsExtension
         }
     }
 
-abstract class ExternalOpenApiSpec
+open class ExternalOpenApiSpec
     @Inject
     constructor(
         private val specName: String,
@@ -71,7 +73,7 @@ abstract class ExternalOpenApiSpec
         val normalizedFileName: Property<String> = objects.property(String::class.java)
     }
 
-abstract class ExternalOpenApiSpecFilter
+open class ExternalOpenApiSpecFilter
     @Inject
     constructor(
         private val filterName: String,
@@ -105,7 +107,7 @@ abstract class DownloadExternalOpenApiSpecsTask : DefaultTask() {
 
     @get:Input
     val configuredSourceUrls: Map<String, String>
-        get() = configuredSpecs.toList().associate { spec -> spec.name to (spec.sourceUrl.orNull ?: "") }
+        get() = configuredSpecs.toList().associate { spec -> spec.name to spec.sourceUrl.orNull.orEmpty() }
 
     @get:Input
     val configuredRawFileNames: Map<String, String>
@@ -115,7 +117,7 @@ abstract class DownloadExternalOpenApiSpecsTask : DefaultTask() {
     fun download() {
         val specs = configuredSpecs.toList()
         if (specs.isEmpty()) {
-            throw GradleException("openApiExternalSpecs.specs must contain at least one configured spec.")
+            externalSpecsFailure("openApiExternalSpecs.specs must contain at least one configured spec.")
         }
 
         val outputDir = specDirectory.get().asFile
@@ -123,7 +125,7 @@ abstract class DownloadExternalOpenApiSpecsTask : DefaultTask() {
         specs.forEach { spec ->
             val source =
                 spec.sourceUrl.orNull?.takeIf { it.isNotBlank() }
-                    ?: throw GradleException("openApiExternalSpecs.specs.${spec.name}.sourceUrl is required.")
+                    ?: externalSpecsFailure("openApiExternalSpecs.specs.${spec.name}.sourceUrl is required.")
             val target = safeChild(outputDir, spec.rawFileName.get(), "rawFileName")
             target.parentFile.mkdirs()
             val uri = parseSourceUri(spec.name, source)
@@ -132,8 +134,8 @@ abstract class DownloadExternalOpenApiSpecsTask : DefaultTask() {
                 uri.toURL().openStream().use { input ->
                     target.outputStream().use { output -> input.copyTo(output) }
                 }
-            } catch (exc: Exception) {
-                throw GradleException("Failed to download OpenAPI spec '${spec.name}' from $source", exc)
+            } catch (exc: IOException) {
+                externalSpecsFailure("Failed to download OpenAPI spec '${spec.name}' from $source", exc)
             }
         }
     }
@@ -178,7 +180,7 @@ abstract class NormalizeExternalOpenApiSpecsTask : DefaultTask() {
     fun normalize() {
         val specs = configuredSpecs.toList()
         if (specs.isEmpty()) {
-            throw GradleException("openApiExternalSpecs.specs must contain at least one configured spec.")
+            externalSpecsFailure("openApiExternalSpecs.specs must contain at least one configured spec.")
         }
 
         val outputDir = specDirectory.get().asFile
@@ -186,7 +188,7 @@ abstract class NormalizeExternalOpenApiSpecsTask : DefaultTask() {
             val normalizedName = normalizedJsonFileName(spec)
             val source = safeChild(outputDir, spec.rawFileName.get(), "rawFileName")
             if (!source.exists() || !source.isFile) {
-                throw GradleException("Raw OpenAPI spec for '${spec.name}' does not exist: ${source.absolutePath}")
+                externalSpecsFailure("Raw OpenAPI spec for '${spec.name}' does not exist: ${source.absolutePath}")
             }
 
             val target = safeChild(outputDir, normalizedName, "normalizedFileName")
@@ -231,25 +233,25 @@ abstract class OpenApiFilterSpecTask : DefaultTask() {
     fun filter() {
         val allowList = allowedOperations.get()
         if (allowList.isEmpty()) {
-            throw GradleException("allowedOperations must contain at least one path.")
+            externalSpecsFailure("allowedOperations must contain at least one path.")
         }
         val tag =
             injectedTag.orNull?.takeIf { it.isNotBlank() }
-                ?: throw GradleException("injectedTag is required and must not be blank.")
+                ?: externalSpecsFailure("injectedTag is required and must not be blank.")
 
         val parsedRoot = OpenApiSpecJson.read(inputSpec.get().asFile)
         if (parsedRoot !is ObjectNode) {
-            throw GradleException("OpenAPI spec must be a JSON/YAML object: ${inputSpec.get().asFile.absolutePath}")
+            externalSpecsFailure("OpenAPI spec must be a JSON/YAML object: ${inputSpec.get().asFile.absolutePath}")
         }
         val root = parsedRoot.deepCopy<ObjectNode>()
         val paths =
             root.path("paths") as? ObjectNode
-                ?: throw GradleException(
+                ?: externalSpecsFailure(
                     "OpenAPI spec must contain a 'paths' object: ${inputSpec.get().asFile.absolutePath}",
                 )
         val output = outputSpec.get().asFile
         if (!output.name.endsWith(".json", ignoreCase = true)) {
-            throw GradleException("OpenApiFilterSpecTask outputSpec must end with .json: ${output.absolutePath}")
+            externalSpecsFailure("OpenApiFilterSpecTask outputSpec must end with .json: ${output.absolutePath}")
         }
 
         filterPaths(paths, allowList, tag)
@@ -280,7 +282,7 @@ abstract class OpenApiFilterSpecTask : DefaultTask() {
         val methods = setOf("get", "post", "put", "patch", "delete", "head", "options", "trace")
         val missingPaths = allowList.keys.filterNot { paths.has(it) }
         if (missingPaths.isNotEmpty()) {
-            throw GradleException(
+            externalSpecsFailure(
                 "allowedOperations references path(s) not present in the OpenAPI spec: ${missingPaths.joinToString(
                     ", ",
                 )}",
@@ -288,11 +290,11 @@ abstract class OpenApiFilterSpecTask : DefaultTask() {
         }
         allowList.forEach { (path, allowedMethods) ->
             if (allowedMethods.isEmpty()) {
-                throw GradleException("allowedOperations[$path] must contain at least one HTTP method.")
+                externalSpecsFailure("allowedOperations[$path] must contain at least one HTTP method.")
             }
             val invalidMethods = allowedMethods.map { it.lowercase() }.filterNot(methods::contains)
             if (invalidMethods.isNotEmpty()) {
-                throw GradleException(
+                externalSpecsFailure(
                     "allowedOperations[$path] contains unsupported HTTP method(s): ${invalidMethods.joinToString(
                         ", ",
                     )}",
@@ -432,7 +434,7 @@ abstract class OpenApiProvenanceBannerTask : DefaultTask() {
         val normalizedBanner = if (banner.endsWith("\n")) banner else "$banner\n"
         val input = inputFile.get().asFile
         if (!input.exists() || !input.isFile) {
-            throw GradleException("inputFile does not exist: ${input.absolutePath}")
+            externalSpecsFailure("inputFile does not exist: ${input.absolutePath}")
         }
         val output = outputFile.get().asFile
         output.parentFile.mkdirs()
@@ -463,13 +465,13 @@ abstract class OpenApiDriftCheckTask : DefaultTask() {
         val expected = expectedFile.get().asFile
         val actual = actualFile.get().asFile
         if (!expected.exists() || !expected.isFile) {
-            throw GradleException("expectedFile does not exist: ${expected.absolutePath}")
+            externalSpecsFailure("expectedFile does not exist: ${expected.absolutePath}")
         }
         if (!actual.exists() || !actual.isFile) {
-            throw GradleException("actualFile does not exist: ${actual.absolutePath}")
+            externalSpecsFailure("actualFile does not exist: ${actual.absolutePath}")
         }
         if (expected.readText() != actual.readText()) {
-            throw GradleException(failureMessage.get())
+            externalSpecsFailure(failureMessage.get())
         }
     }
 }
@@ -498,16 +500,16 @@ internal object OpenApiSpecJson {
                 jsonMapper
             }
         if (file.length() == 0L) {
-            throw GradleException("OpenAPI spec must not be empty: ${file.absolutePath}")
+            externalSpecsFailure("OpenAPI spec must not be empty: ${file.absolutePath}")
         }
         return try {
             val root = mapper.readTree(file)
             if (root == null || root.isMissingNode) {
-                throw GradleException("OpenAPI spec must not be empty: ${file.absolutePath}")
+                externalSpecsFailure("OpenAPI spec must not be empty: ${file.absolutePath}")
             }
             root
         } catch (exc: JsonProcessingException) {
-            throw GradleException("OpenAPI spec must be valid JSON or YAML: ${file.absolutePath}", exc)
+            externalSpecsFailure("OpenAPI spec must be valid JSON or YAML: ${file.absolutePath}", exc)
         }
     }
 
@@ -518,21 +520,22 @@ internal object OpenApiSpecJson {
         target.writeText(jsonMapper.writeValueAsString(sortObjects(root)))
     }
 
-    private fun sortObjects(node: JsonNode): JsonNode {
-        if (node is ObjectNode) {
-            val sorted = node.objectNode()
-            node.fieldNames().asSequence().toList().sorted().forEach { field ->
-                sorted.set<JsonNode>(field, sortObjects(node.get(field)))
+    private fun sortObjects(node: JsonNode): JsonNode =
+        when (node) {
+            is ObjectNode -> {
+                val sorted = node.objectNode()
+                node.fieldNames().asSequence().toList().sorted().forEach { field ->
+                    sorted.set<JsonNode>(field, sortObjects(node.get(field)))
+                }
+                sorted
             }
-            return sorted
+            is ArrayNode -> {
+                val sorted = node.arrayNode()
+                node.forEach { sorted.add(sortObjects(it)) }
+                sorted
+            }
+            else -> node
         }
-        if (node is ArrayNode) {
-            val sorted = node.arrayNode()
-            node.forEach { sorted.add(sortObjects(it)) }
-            return sorted
-        }
-        return node
-    }
 }
 
 private fun parseSourceUri(
@@ -542,11 +545,11 @@ private fun parseSourceUri(
     val uri =
         try {
             URI(source)
-        } catch (exc: Exception) {
-            throw GradleException("openApiExternalSpecs.specs.$specName.sourceUrl must be a valid URI: $source", exc)
+        } catch (exc: URISyntaxException) {
+            externalSpecsFailure("openApiExternalSpecs.specs.$specName.sourceUrl must be a valid URI: $source", exc)
         }
     if (uri.scheme.isNullOrBlank()) {
-        throw GradleException("openApiExternalSpecs.specs.$specName.sourceUrl must be an absolute URI: $source")
+        externalSpecsFailure("openApiExternalSpecs.specs.$specName.sourceUrl must be an absolute URI: $source")
     }
     return uri
 }
@@ -554,19 +557,24 @@ private fun parseSourceUri(
 private fun normalizedJsonFileName(spec: ExternalOpenApiSpec): String {
     val normalizedName = spec.normalizedFileName.get()
     if (!normalizedName.endsWith(".json", ignoreCase = true)) {
-        throw GradleException(
+        externalSpecsFailure(
             "openApiExternalSpecs.specs.${spec.name}.normalizedFileName must end with .json.",
         )
     }
     return normalizedName
 }
 
-private fun parseComponentRef(ref: String): ComponentRef? {
-    if (!ref.startsWith("#/components/")) return null
-    val segments = ref.removePrefix("#/components/").split("/")
-    if (segments.size < 2) return null
-    return ComponentRef(segments[0].decodeJsonPointer(), segments.drop(1).joinToString("/").decodeJsonPointer())
-}
+private fun parseComponentRef(ref: String): ComponentRef? =
+    if (!ref.startsWith("#/components/")) {
+        null
+    } else {
+        val segments = ref.removePrefix("#/components/").split("/")
+        if (segments.size < 2) {
+            null
+        } else {
+            ComponentRef(segments[0].decodeJsonPointer(), segments.drop(1).joinToString("/").decodeJsonPointer())
+        }
+    }
 
 private fun String.decodeJsonPointer(): String = replace("~1", "/").replace("~0", "~")
 
@@ -576,19 +584,26 @@ private fun safeChild(
     propertyName: String,
 ): File {
     if (relativePath.isBlank()) {
-        throw GradleException("openApiExternalSpecs $propertyName must not be blank.")
+        externalSpecsFailure("openApiExternalSpecs $propertyName must not be blank.")
     }
     val child = File(relativePath)
     if (child.isAbsolute) {
-        throw GradleException("openApiExternalSpecs $propertyName must be relative: $relativePath")
+        externalSpecsFailure("openApiExternalSpecs $propertyName must be relative: $relativePath")
     }
     val base = directory.canonicalFile
     val target = base.resolve(relativePath).canonicalFile
     if (!target.path.startsWith(base.path + File.separator) && target != base) {
-        throw GradleException("openApiExternalSpecs $propertyName must stay inside ${base.absolutePath}: $relativePath")
+        externalSpecsFailure("openApiExternalSpecs $propertyName must stay inside ${base.absolutePath}: $relativePath")
     }
     return target
 }
+
+private fun externalSpecsFailure(message: String): Nothing = throw GradleException(message)
+
+private fun externalSpecsFailure(
+    message: String,
+    cause: Throwable,
+): Nothing = throw GradleException(message, cause)
 
 @Suppress("UNCHECKED_CAST")
 private fun listOfStringsType(): Class<List<String>> = List::class.java as Class<List<String>>
