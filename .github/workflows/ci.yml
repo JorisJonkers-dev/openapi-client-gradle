@@ -35,7 +35,7 @@
     'with':
       'java-version': '21'
       'gradle-args': '--no-daemon --stacktrace'
-      'lint-gradle-args': 'detekt ktlintCheck validatePlugins verifyPublishingCoordinates'
+      'lint-gradle-args': 'detektMain detektTest ktlintCheck validatePlugins verifyPublishingCoordinates'
       'test-gradle-args': 'test jacocoTestCoverageVerification'
     'secrets':
       'packages-token': '${{ secrets.GITHUB_TOKEN }}'
