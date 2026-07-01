@@ -14,7 +14,7 @@ import org.gradle.api.provider.Property
 import java.io.File
 import javax.inject.Inject
 
-abstract class OpenApiClientExtension
+open class OpenApiClientExtension
     @Inject
     constructor(
         objects: ObjectFactory,
@@ -117,46 +117,27 @@ internal object OpenApiClientConfigurationValidator {
     private val yamlMapper = ObjectMapper(YAMLFactory())
     private val httpMethods = setOf("get", "post", "put", "patch", "delete", "head", "options", "trace")
 
-    fun validate(
-        specPath: String?,
-        specFile: File?,
-        apiPackage: String?,
-        modelPackage: String?,
-        packageName: String?,
-        generatorName: String? = "java",
-        library: String? = "restclient",
-        sourceFolder: String? = "src/main/java",
-        serializationLibrary: String? = "jackson",
-        dateLibrary: String? = "java8",
-        enumPropertyNaming: String? = "MACRO_CASE",
-        apis: List<String>,
-        models: List<String> = emptyList(),
-        supportingFiles: List<String> = emptyList(),
-        schemaMappings: Map<String, String>,
-        typeMappings: Map<String, String>,
-        inlineSchemaOptions: Map<String, String> = mapOf("RESOLVE_INLINE_ENUMS" to "true"),
-        configOptions: Map<String, String> = emptyMap(),
-    ) {
-        requireNonBlank("specPath", specPath)
-        requireNonBlank("apiPackage", apiPackage)
-        requireNonBlank("modelPackage", modelPackage)
-        requireNonBlank("packageName", packageName)
-        requireNonBlank("generatorName", generatorName)
-        requireNonBlank("library", library)
-        requireNonBlank("sourceFolder", sourceFolder)
-        requireNonBlank("serializationLibrary", serializationLibrary)
-        requireNonBlank("dateLibrary", dateLibrary)
-        requireNonBlank("enumPropertyNaming", enumPropertyNaming)
+    fun validate(configuration: OpenApiClientValidationConfiguration) {
+        requireNonBlank("specPath", configuration.spec.path)
+        requireNonBlank("apiPackage", configuration.packages.apiPackage)
+        requireNonBlank("modelPackage", configuration.packages.modelPackage)
+        requireNonBlank("packageName", configuration.packages.packageName)
+        requireNonBlank("generatorName", configuration.generator.codegen.generatorName)
+        requireNonBlank("library", configuration.generator.codegen.library)
+        requireNonBlank("sourceFolder", configuration.generator.codegen.sourceFolder)
+        requireNonBlank("serializationLibrary", configuration.generator.serialization.serializationLibrary)
+        requireNonBlank("dateLibrary", configuration.generator.serialization.dateLibrary)
+        requireNonBlank("enumPropertyNaming", configuration.generator.serialization.enumPropertyNaming)
 
-        validateList("apis", apis)
-        validateList("models", models)
-        validateList("supportingFiles", supportingFiles)
-        validateMappings("schemaMappings", schemaMappings)
-        validateMappings("typeMappings", typeMappings)
-        validateMappings("inlineSchemaOptions", inlineSchemaOptions)
-        validateMappings("configOptions", configOptions)
+        validateList("apis", configuration.selection.apis)
+        validateList("models", configuration.selection.models)
+        validateList("supportingFiles", configuration.selection.supportingFiles)
+        validateMappings("schemaMappings", configuration.mappings.schemaMappings)
+        validateMappings("typeMappings", configuration.mappings.typeMappings)
+        validateMappings("inlineSchemaOptions", configuration.mappings.inlineSchemaOptions)
+        validateMappings("configOptions", configuration.mappings.configOptions)
 
-        val file = specFile ?: configurationFailure("openApiClient.specPath is required.")
+        val file = configuration.spec.file ?: configurationFailure("openApiClient.specPath is required.")
         if (!file.exists()) {
             configurationFailure("OpenAPI spec file does not exist: ${file.absolutePath}")
         }
@@ -176,9 +157,9 @@ internal object OpenApiClientConfigurationValidator {
             configurationFailure("OpenAPI spec must contain a 'paths' object: ${file.absolutePath}")
         }
 
-        if (apis.isNotEmpty()) {
+        if (configuration.selection.apis.isNotEmpty()) {
             val operationTags = collectOperationTags(paths)
-            val missingApis = apis.filterNot(operationTags::contains)
+            val missingApis = configuration.selection.apis.filterNot(operationTags::contains)
             if (missingApis.isNotEmpty()) {
                 val available = operationTags.sorted().joinToString(", ").ifBlank { "(none)" }
                 configurationFailure(
@@ -262,6 +243,55 @@ internal object OpenApiClientConfigurationValidator {
         cause: Throwable,
     ): Nothing = throw GradleException(message, cause)
 }
+
+internal data class OpenApiClientValidationConfiguration(
+    val spec: OpenApiSpecConfiguration,
+    val packages: OpenApiPackageConfiguration,
+    val generator: OpenApiGeneratorSettings,
+    val selection: OpenApiSelectionConfiguration,
+    val mappings: OpenApiMappingConfiguration,
+)
+
+internal data class OpenApiSpecConfiguration(
+    val path: String?,
+    val file: File?,
+)
+
+internal data class OpenApiPackageConfiguration(
+    val apiPackage: String?,
+    val modelPackage: String?,
+    val packageName: String?,
+)
+
+internal data class OpenApiGeneratorSettings(
+    val codegen: OpenApiCodegenConfiguration,
+    val serialization: OpenApiSerializationConfiguration,
+)
+
+internal data class OpenApiCodegenConfiguration(
+    val generatorName: String?,
+    val library: String?,
+    val sourceFolder: String?,
+)
+
+internal data class OpenApiSerializationConfiguration(
+    val serializationLibrary: String?,
+    val dateLibrary: String?,
+    val enumPropertyNaming: String?,
+)
+
+internal data class OpenApiSelectionConfiguration(
+    val apis: List<String>,
+    val models: List<String>,
+    val supportingFiles: List<String>,
+)
+
+internal data class OpenApiMappingConfiguration(
+    val schemaMappings: Map<String, String>,
+    val typeMappings: Map<String, String>,
+    val inlineSchemaOptions: Map<String, String>,
+    val configOptions: Map<String, String>,
+)
 
 internal fun resolveSpecFile(
     rootProjectDir: File,

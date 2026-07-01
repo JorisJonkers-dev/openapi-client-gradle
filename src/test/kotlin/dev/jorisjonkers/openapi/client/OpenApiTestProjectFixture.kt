@@ -14,7 +14,7 @@ import kotlin.io.path.createDirectories
 import kotlin.io.path.readText
 import kotlin.io.path.writeText
 
-abstract class OpenApiTestProjectFixture {
+open class OpenApiTestProjectFixture {
     protected val jsonMapper = ObjectMapper()
 
     @TempDir

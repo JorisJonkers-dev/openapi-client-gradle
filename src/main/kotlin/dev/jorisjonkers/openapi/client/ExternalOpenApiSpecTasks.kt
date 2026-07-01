@@ -33,7 +33,7 @@ import java.net.URISyntaxException
 import java.util.Locale
 import javax.inject.Inject
 
-abstract class OpenApiExternalSpecsExtension
+open class OpenApiExternalSpecsExtension
     @Inject
     constructor(
         objects: ObjectFactory,
@@ -60,7 +60,7 @@ abstract class OpenApiExternalSpecsExtension
         }
     }
 
-abstract class ExternalOpenApiSpec
+open class ExternalOpenApiSpec
     @Inject
     constructor(
         private val specName: String,
@@ -73,7 +73,7 @@ abstract class ExternalOpenApiSpec
         val normalizedFileName: Property<String> = objects.property(String::class.java)
     }
 
-abstract class ExternalOpenApiSpecFilter
+open class ExternalOpenApiSpecFilter
     @Inject
     constructor(
         private val filterName: String,
@@ -107,7 +107,7 @@ abstract class DownloadExternalOpenApiSpecsTask : DefaultTask() {
 
     @get:Input
     val configuredSourceUrls: Map<String, String>
-        get() = configuredSpecs.toList().associate { spec -> spec.name to (spec.sourceUrl.orNull ?: "") }
+        get() = configuredSpecs.toList().associate { spec -> spec.name to spec.sourceUrl.orNull.orEmpty() }
 
     @get:Input
     val configuredRawFileNames: Map<String, String>

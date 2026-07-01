@@ -139,7 +139,7 @@ internal fun Project.configuredExistingSpecFiles(extension: OpenApiClientExtensi
         configuredSpecFile(extension)
             ?.takeIf { it.exists() && it.isFile }
             ?.let { listOf(it) }
-            ?: emptyList()
+            .orEmpty()
     }
 
 internal fun Project.configuredSpecFile(extension: OpenApiClientExtension): File? =
@@ -153,24 +153,47 @@ internal fun GenerateTask.configureValidation(
 ) {
     doFirst {
         OpenApiClientConfigurationValidator.validate(
-            specPath = extension.specPath.orNull,
-            specFile = project.configuredSpecFile(extension),
-            apiPackage = extension.apiPackage.orNull,
-            modelPackage = extension.modelPackage.orNull,
-            packageName = extension.packageName.orNull,
-            generatorName = extension.generatorName.orNull,
-            library = extension.library.orNull,
-            sourceFolder = extension.sourceFolder.orNull,
-            serializationLibrary = extension.serializationLibrary.orNull,
-            dateLibrary = extension.dateLibrary.orNull,
-            enumPropertyNaming = extension.enumPropertyNaming.orNull,
-            apis = extension.apis.getOrElse(emptyList()),
-            models = extension.models.getOrElse(emptyList()),
-            supportingFiles = extension.supportingFiles.getOrElse(emptyList()),
-            schemaMappings = extension.schemaMappings.getOrElse(emptyMap()),
-            typeMappings = extension.typeMappings.getOrElse(emptyMap()),
-            inlineSchemaOptions = extension.inlineSchemaOptions.getOrElse(emptyMap()),
-            configOptions = extension.configOptions.getOrElse(emptyMap()),
+            OpenApiClientValidationConfiguration(
+                spec =
+                    OpenApiSpecConfiguration(
+                        path = extension.specPath.orNull,
+                        file = project.configuredSpecFile(extension),
+                    ),
+                packages =
+                    OpenApiPackageConfiguration(
+                        apiPackage = extension.apiPackage.orNull,
+                        modelPackage = extension.modelPackage.orNull,
+                        packageName = extension.packageName.orNull,
+                    ),
+                generator =
+                    OpenApiGeneratorSettings(
+                        codegen =
+                            OpenApiCodegenConfiguration(
+                                generatorName = extension.generatorName.orNull,
+                                library = extension.library.orNull,
+                                sourceFolder = extension.sourceFolder.orNull,
+                            ),
+                        serialization =
+                            OpenApiSerializationConfiguration(
+                                serializationLibrary = extension.serializationLibrary.orNull,
+                                dateLibrary = extension.dateLibrary.orNull,
+                                enumPropertyNaming = extension.enumPropertyNaming.orNull,
+                            ),
+                    ),
+                selection =
+                    OpenApiSelectionConfiguration(
+                        apis = extension.apis.getOrElse(emptyList()),
+                        models = extension.models.getOrElse(emptyList()),
+                        supportingFiles = extension.supportingFiles.getOrElse(emptyList()),
+                    ),
+                mappings =
+                    OpenApiMappingConfiguration(
+                        schemaMappings = extension.schemaMappings.getOrElse(emptyMap()),
+                        typeMappings = extension.typeMappings.getOrElse(emptyMap()),
+                        inlineSchemaOptions = extension.inlineSchemaOptions.getOrElse(emptyMap()),
+                        configOptions = extension.configOptions.getOrElse(emptyMap()),
+                    ),
+            ),
         )
     }
 }

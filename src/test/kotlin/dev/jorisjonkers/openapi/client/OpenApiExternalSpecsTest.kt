@@ -180,7 +180,7 @@ class OpenApiExternalSpecsTest : OpenApiTestProjectFixture() {
         externalSpecHarness().let { harness ->
             harness.extension.specs.create("invalid") {
                 this.sourceUrl.set(sourceUrl)
-                rawFileName?.let { this.rawFileName.set(it) }
+                rawFileName?.let { configuredRawFileName -> this.rawFileName.set(configuredRawFileName) }
             }
             assertGradleFails(expectedMessage) {
                 harness.download.download()

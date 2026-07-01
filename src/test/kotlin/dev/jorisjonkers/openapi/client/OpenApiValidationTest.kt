@@ -11,14 +11,21 @@ class OpenApiValidationTest : OpenApiTestProjectFixture() {
     fun `validates yaml and json specs directly`() {
         val yaml = writeSpec("specs/direct.yml", directYamlFixture)
         validateConfiguration(
-            specFile = yaml,
-            apis = listOf("Pets"),
-            schemaMappings = mapOf("PetEnvelope" to "com.example.PetEnvelope"),
-            typeMappings = mapOf("uuid" to "java.util.UUID"),
+            validationConfiguration(
+                specFile = yaml,
+                selection = validSelection.copy(apis = listOf("Pets")),
+                mappings =
+                    validMappings.copy(
+                        schemaMappings = mapOf("PetEnvelope" to "com.example.PetEnvelope"),
+                        typeMappings = mapOf("uuid" to "java.util.UUID"),
+                    ),
+            ),
         )
 
         val json = writeSpec("specs/direct.json", directJsonFixture)
-        validateConfiguration(specFile = json, apis = emptyList())
+        validateConfiguration(
+            validationConfiguration(specFile = json, selection = validSelection.copy(apis = emptyList())),
+        )
     }
 
     @Test
@@ -26,84 +33,92 @@ class OpenApiValidationTest : OpenApiTestProjectFixture() {
         writeResource("specs/sample.yml", tempDir.resolve("specs/sample.yml"))
         val validSpec = tempDir.resolve("specs/sample.yml")
 
-        assertValidationFails("openApiClient.apiPackage is required", specFile = validSpec, apiPackage = "")
+        assertValidationFails(
+            "openApiClient.apiPackage is required",
+            validationConfiguration(specFile = validSpec, packages = validPackages.copy(apiPackage = "")),
+        )
         assertValidationFails(
             "openApiClient.apis must not contain blank values",
-            specFile = validSpec,
-            apis = listOf(" "),
+            validationConfiguration(specFile = validSpec, selection = validSelection.copy(apis = listOf(" "))),
         )
         assertValidationFails(
             "openApiClient.typeMappings must not contain blank keys or values",
-            specFile = validSpec,
-            typeMappings =
-                mapOf(
-                    "uuid" to "",
-                ),
+            validationConfiguration(
+                specFile = validSpec,
+                mappings =
+                    validMappings.copy(
+                        typeMappings =
+                            mapOf(
+                                "uuid" to "",
+                            ),
+                    ),
+            ),
         )
-        assertValidationFails("openApiClient.specPath is required", specPath = "specs/missing.yml", specFile = null)
-        assertValidationFails("OpenAPI spec file does not exist", specFile = tempDir.resolve("specs/missing.yml"))
-        assertValidationFails("OpenAPI spec file is not readable", specFile = tempDir)
+        assertValidationFails(
+            "openApiClient.specPath is required",
+            validationConfiguration(specPath = "specs/missing.yml", specFile = null),
+        )
+        assertValidationFails(
+            "OpenAPI spec file does not exist",
+            validationConfiguration(specFile = tempDir.resolve("specs/missing.yml")),
+        )
+        assertValidationFails("OpenAPI spec file is not readable", validationConfiguration(specFile = tempDir))
 
-        assertValidationFails("OpenAPI spec file is empty", specFile = writeSpec("specs/empty.yml", ""))
-        assertValidationFails("OpenAPI spec must be valid JSON or YAML", specFile = writeSpec("specs/broken.json", "{"))
+        assertValidationFails(
+            "OpenAPI spec file is empty",
+            validationConfiguration(specFile = writeSpec("specs/empty.yml", "")),
+        )
+        assertValidationFails(
+            "OpenAPI spec must be valid JSON or YAML",
+            validationConfiguration(specFile = writeSpec("specs/broken.json", "{")),
+        )
         assertValidationFails(
             "OpenAPI spec must contain a 'paths' object",
-            specFile = writeSpec("specs/missing-paths.yml", missingPathsYamlFixture),
+            validationConfiguration(specFile = writeSpec("specs/missing-paths.yml", missingPathsYamlFixture)),
         )
 
         writeResource("specs/untagged.yml", tempDir.resolve("specs/untagged.yml"))
         assertValidationFails(
             "Available tags: (none)",
-            specFile = tempDir.resolve("specs/untagged.yml"),
-            apis = listOf("Missing"),
+            validationConfiguration(
+                specFile = tempDir.resolve("specs/untagged.yml"),
+                selection = validSelection.copy(apis = listOf("Missing")),
+            ),
         )
     }
 
-    private fun validateConfiguration(
+    private fun validationConfiguration(
         specFile: Path?,
         specPath: String? = specFile?.toString() ?: "spec.yml",
-        apiPackage: String? = "com.example.pet.api",
-        modelPackage: String? = "com.example.pet.model",
-        packageName: String? = "com.example.pet.invoker",
-        apis: List<String> = listOf("Pets"),
-        schemaMappings: Map<String, String> = emptyMap(),
-        typeMappings: Map<String, String> = emptyMap(),
-    ) {
+        packages: OpenApiPackageConfiguration = validPackages,
+        selection: OpenApiSelectionConfiguration = validSelection,
+        mappings: OpenApiMappingConfiguration = validMappings,
+    ): OpenApiClientValidationConfiguration =
+        OpenApiClientValidationConfiguration(
+            spec =
+                OpenApiSpecConfiguration(
+                    path = specPath,
+                    file = specFile?.toFile(),
+                ),
+            packages = packages,
+            generator = validGenerator,
+            selection = selection,
+            mappings = mappings,
+        )
+
+    private fun validateConfiguration(configuration: OpenApiClientValidationConfiguration) {
         OpenApiClientConfigurationValidator.validate(
-            specPath = specPath,
-            specFile = specFile?.toFile(),
-            apiPackage = apiPackage,
-            modelPackage = modelPackage,
-            packageName = packageName,
-            apis = apis,
-            schemaMappings = schemaMappings,
-            typeMappings = typeMappings,
+            configuration,
         )
     }
 
     private fun assertValidationFails(
         expectedMessage: String,
-        specFile: Path?,
-        specPath: String? = specFile?.toString() ?: "spec.yml",
-        apiPackage: String? = "com.example.pet.api",
-        modelPackage: String? = "com.example.pet.model",
-        packageName: String? = "com.example.pet.invoker",
-        apis: List<String> = listOf("Pets"),
-        schemaMappings: Map<String, String> = emptyMap(),
-        typeMappings: Map<String, String> = emptyMap(),
+        configuration: OpenApiClientValidationConfiguration,
     ) {
         val error =
             assertThrows(GradleException::class.java) {
-                validateConfiguration(
-                    specPath = specPath,
-                    specFile = specFile,
-                    apiPackage = apiPackage,
-                    modelPackage = modelPackage,
-                    packageName = packageName,
-                    apis = apis,
-                    schemaMappings = schemaMappings,
-                    typeMappings = typeMappings,
-                )
+                validateConfiguration(configuration)
             }
         assertTrue(
             error.message?.contains(expectedMessage) == true,
@@ -111,6 +126,44 @@ class OpenApiValidationTest : OpenApiTestProjectFixture() {
         )
     }
 }
+
+private val validPackages =
+    OpenApiPackageConfiguration(
+        apiPackage = "com.example.pet.api",
+        modelPackage = "com.example.pet.model",
+        packageName = "com.example.pet.invoker",
+    )
+
+private val validGenerator =
+    OpenApiGeneratorSettings(
+        codegen =
+            OpenApiCodegenConfiguration(
+                generatorName = "java",
+                library = "restclient",
+                sourceFolder = "src/main/java",
+            ),
+        serialization =
+            OpenApiSerializationConfiguration(
+                serializationLibrary = "jackson",
+                dateLibrary = "java8",
+                enumPropertyNaming = "MACRO_CASE",
+            ),
+    )
+
+private val validSelection =
+    OpenApiSelectionConfiguration(
+        apis = listOf("Pets"),
+        models = emptyList(),
+        supportingFiles = emptyList(),
+    )
+
+private val validMappings =
+    OpenApiMappingConfiguration(
+        schemaMappings = emptyMap(),
+        typeMappings = emptyMap(),
+        inlineSchemaOptions = mapOf("RESOLVE_INLINE_ENUMS" to "true"),
+        configOptions = emptyMap(),
+    )
 
 private val directYamlFixture =
     """
