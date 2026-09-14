@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.2](https://github.com/JorisJonkers-dev/openapi-client-gradle/compare/v0.3.1...v0.3.2) (2026-08-27)
+
+
+### Bug Fixes
+
+* renormalize gradlew.bat line endings ([#10](https://github.com/JorisJonkers-dev/openapi-client-gradle/issues/10)) ([bd58beb](https://github.com/JorisJonkers-dev/openapi-client-gradle/commit/bd58beb085dd9cb4f4ef6cee18649ac125f92e5c))
+
 ## [0.3.1](https://github.com/JorisJonkers-dev/openapi-client-gradle/compare/v0.3.0...v0.3.1) (2026-06-29)
 
 
