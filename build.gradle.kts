@@ -49,10 +49,10 @@ gradlePlugin {
 }
 
 dependencies {
-    implementation("org.openapitools:openapi-generator-gradle-plugin:7.22.0")
-    implementation("org.jetbrains.kotlin:kotlin-gradle-plugin:2.3.21")
-    implementation("com.fasterxml.jackson.core:jackson-databind:2.21.3")
-    implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.21.3")
+    implementation("org.openapitools:openapi-generator-gradle-plugin:7.26.0")
+    implementation("org.jetbrains.kotlin:kotlin-gradle-plugin:2.4.21")
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.22.3")
+    implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.22.3")
 
     testImplementation(gradleTestKit())
     testImplementation(kotlin("test-junit5"))
