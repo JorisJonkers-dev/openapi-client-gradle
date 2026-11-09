@@ -46,7 +46,7 @@
       - 'uses': 'actions/checkout@v6'
         'with':
           'ref': '${{ needs.release-please.outputs.tag_name }}'
-      - 'uses': 'JorisJonkers-dev/github-workflows/actions/setup-java-gradle@2e0d88483fbb70fdb54034c85e9930dec066f906' # v0.45.2
+      - 'uses': 'JorisJonkers-dev/github-workflows/actions/setup-java-gradle@8b5462a796f022647dfc44123ddb3655cc3c2f28' # v0.45.3
         'with':
           'java-version': '21'
           'packages-proxy-token': '${{ secrets.PACKAGES_PROXY_TOKEN }}'
