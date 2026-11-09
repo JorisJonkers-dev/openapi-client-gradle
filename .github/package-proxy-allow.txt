@@ -1,0 +1,2 @@
+# Allowlist for the package-proxy guard: entries below are intentional.
+build.gradle.kts replaced by the package-proxy Gradle init script in CI and on workstations
