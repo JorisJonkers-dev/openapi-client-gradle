@@ -46,11 +46,11 @@
       - 'uses': 'actions/checkout@v6'
         'with':
           'ref': '${{ needs.release-please.outputs.tag_name }}'
-      - 'uses': 'actions/setup-java@v5'
+      - 'uses': 'JorisJonkers-dev/github-workflows/actions/setup-java-gradle@2e0d88483fbb70fdb54034c85e9930dec066f906' # v0.45.2
         'with':
-          'distribution': 'temurin'
           'java-version': '21'
-      - 'uses': 'gradle/actions/setup-gradle@v6'
+          'packages-proxy-token': '${{ secrets.PACKAGES_PROXY_TOKEN }}'
+          'require-package-proxy': true
       - 'name': 'Publish to GitHub Packages'
         'run': |
           artifact_version="${TAG_NAME#v}"

@@ -31,14 +31,16 @@
 
   'jvm-ci':
     'name': 'JVM CI'
-    'uses': 'JorisJonkers-dev/github-workflows/.github/workflows/jvm-ci.yml@v0.10.2'
+    'uses': 'JorisJonkers-dev/github-workflows/.github/workflows/jvm-ci.yml@2e0d88483fbb70fdb54034c85e9930dec066f906' # v0.45.2
     'with':
       'java-version': '21'
       'gradle-args': '--no-daemon --stacktrace'
       'lint-gradle-args': 'detektMain detektTest ktlintCheck validatePlugins verifyPublishingCoordinates'
       'test-gradle-args': 'test jacocoTestCoverageVerification'
+      'require-package-proxy': true
     'secrets':
       'packages-token': '${{ secrets.GITHUB_TOKEN }}'
+      'PACKAGES_PROXY_TOKEN': '${{ secrets.PACKAGES_PROXY_TOKEN }}'
 
   'pipeline-complete':
     'name': 'Pipeline Complete'
