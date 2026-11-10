@@ -31,7 +31,7 @@
 
   'jvm-ci':
     'name': 'JVM CI'
-    'uses': 'JorisJonkers-dev/github-workflows/.github/workflows/jvm-ci.yml@8b5462a796f022647dfc44123ddb3655cc3c2f28' # v0.45.3
+    'uses': 'JorisJonkers-dev/github-workflows/.github/workflows/jvm-ci.yml@38aa4e9ea4a2adfdcfc210967f540023e05bca07' # v0.48.0
     'with':
       'java-version': '21'
       'gradle-args': '--no-daemon --stacktrace'
