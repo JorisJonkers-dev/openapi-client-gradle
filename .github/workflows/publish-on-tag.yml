@@ -15,7 +15,7 @@
     'runs-on': 'ubuntu-latest'
     'steps':
       - 'uses': 'actions/checkout@v6'
-      - 'uses': 'JorisJonkers-dev/github-workflows/actions/setup-java-gradle@8b5462a796f022647dfc44123ddb3655cc3c2f28' # v0.45.3
+      - 'uses': 'JorisJonkers-dev/github-workflows/actions/setup-java-gradle@38aa4e9ea4a2adfdcfc210967f540023e05bca07' # v0.48.0
         'with':
           'java-version': '21'
           'packages-proxy-token': '${{ secrets.PACKAGES_PROXY_TOKEN }}'
