@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.3](https://github.com/JorisJonkers-dev/openapi-client-gradle/compare/v0.3.2...v0.3.3) (2026-11-12)
+
+
+### Bug Fixes
+
+* **hygiene:** never cancel a run of the required hygiene checks ([#24](https://github.com/JorisJonkers-dev/openapi-client-gradle/issues/24)) ([ab6bfde](https://github.com/JorisJonkers-dev/openapi-client-gradle/commit/ab6bfde36d8b73bbd4b648436758ac65b7cd3986))
+
 ## [0.3.2](https://github.com/JorisJonkers-dev/openapi-client-gradle/compare/v0.3.1...v0.3.2) (2026-08-27)
 
 
